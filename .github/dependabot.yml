@@ -1,0 +1,18 @@
+# Dependabot version updates.
+# Major upgrades of eslint, @typescript-eslint/*, and eslint-plugin-obsidianmd
+# are not always aligned (e.g. new ESLint majors before the Obsidian plugin supports them).
+# Always run `pnpm run check` locally or rely on CI before merging.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    versioning-strategy: increase

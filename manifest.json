@@ -1,0 +1,10 @@
+{
+	"id": "plugin-template",
+	"name": "Plugin Template",
+	"version": "0.0.1",
+	"minAppVersion": "0.15.0",
+	"description": "Plugin template.",
+	"author": "imaikosuke",
+	"authorUrl": "https://github.com/imaikosuke",
+	"isDesktopOnly": true
+}
