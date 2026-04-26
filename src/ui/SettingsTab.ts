@@ -1,11 +1,11 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
-import type PluginTemplate from "../../main";
+import type CloudflareR2SyncPlugin from "../../main";
 
 /** Settings screen. Add UI fields that map to `PluginSettings` in `src/settings.ts`. */
-export class TemplateSettingTab extends PluginSettingTab {
-	plugin: PluginTemplate;
+export class CloudflareR2SyncSettingTab extends PluginSettingTab {
+	plugin: CloudflareR2SyncPlugin;
 
-	constructor(app: App, plugin: PluginTemplate) {
+	constructor(app: App, plugin: CloudflareR2SyncPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}

@@ -1,12 +1,12 @@
 import { Notice, Plugin } from "obsidian";
 import { registerCommands } from "./src/commands";
 import { PluginSettings, DEFAULT_SETTINGS } from "./src/settings";
-import { TemplateSettingTab } from "./src/ui/SettingsTab";
+import { CloudflareR2SyncSettingTab } from "./src/ui/SettingsTab";
 
 /**
- * Template entry: rename the class, manifest id, and add your own behavior.
+ * Plugin entry.
  */
-export default class PluginTemplate extends Plugin {
+export default class CloudflareR2SyncPlugin extends Plugin {
 	settings!: PluginSettings;
 
 	async saveSettings(): Promise<void> {
@@ -21,7 +21,7 @@ export default class PluginTemplate extends Plugin {
 		const loaded = (await this.loadData()) as Partial<PluginSettings> | null;
 		this.settings = { ...DEFAULT_SETTINGS, ...loaded };
 
-		this.addSettingTab(new TemplateSettingTab(this.app, this));
+		this.addSettingTab(new CloudflareR2SyncSettingTab(this.app, this));
 		registerCommands(this);
 	}
 }

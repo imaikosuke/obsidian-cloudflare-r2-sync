@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-plugin-template",
+	"name": "obsidian-cloudflare-r2-sync",
 	"version": "0.0.1",
-	"description": "Scaffold for Obsidian plugins. Fork and replace names, then implement your features.",
+	"description": "Cloudflare R2 Sync.",
 	"main": "main.js",
 	"scripts": {
 		"setup": "node onboard.mjs",
