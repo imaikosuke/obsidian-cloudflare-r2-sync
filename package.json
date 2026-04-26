@@ -4,8 +4,6 @@
 	"description": "Cloudflare R2 Sync.",
 	"main": "main.js",
 	"scripts": {
-		"setup": "node onboard.mjs",
-		"setup:check": "node onboard.mjs --check",
 		"dev": "node esbuild.config.mjs",
 		"type": "tsc -noEmit --skipLibCheck",
 		"check": "pnpm type && pnpm lint && pnpm build",
