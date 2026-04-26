@@ -2,8 +2,8 @@
 	"id": "cloudflare-r2-sync",
 	"name": "Cloudflare R2 Sync",
 	"version": "0.0.1",
-	"minAppVersion": "0.15.0",
-	"description": "Cloudflare R2 Sync.",
+	"minAppVersion": "1.11.4",
+	"description": "Sync local note images to Cloudflare R2.",
 	"author": "imaikosuke",
 	"authorUrl": "https://github.com/imaikosuke",
 	"isDesktopOnly": true
