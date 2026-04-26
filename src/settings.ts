@@ -1,11 +1,15 @@
-/**
- * Plugin settings. Extend this interface and DEFAULT_SETTINGS for your feature flags.
- */
 export interface PluginSettings {
-	/** Example toggle wired through settings UI and the sample command. */
-	sampleEnabled: boolean;
+	accountId: string;
+	bucketName: string;
+	publicBaseUrl: string;
+	accessKeyIdSecretName: string;
+	secretAccessKeySecretName: string;
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
-	sampleEnabled: true,
+	accountId: "",
+	bucketName: "",
+	publicBaseUrl: "",
+	accessKeyIdSecretName: "",
+	secretAccessKeySecretName: "",
 };
