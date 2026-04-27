@@ -25,7 +25,7 @@ Remote `http://` and `https://` image URLs are skipped.
 - Desktop Obsidian
 - A Cloudflare account with R2 enabled
 - An R2 bucket
-- An R2 access key pair that can upload objects
+- An R2 access key pair that can upload and delete objects
 - A public URL for the bucket, such as an R2 custom domain or public bucket URL
 
 ## Cloudflare setup
@@ -41,7 +41,7 @@ In the dashboard, open **R2** → **Create bucket**. For use with this plugin, s
 1. Create the bucket with those choices.
 2. Select Settings tab.
 3. Configure a public URL for the bucket.
-4. Create R2 credentials with permission to upload objects to the bucket.
+4. Create R2 credentials with permission to upload and delete objects in the bucket.
 5. Keep the following values ready:
    - Cloudflare account ID
    - R2 bucket name
@@ -61,7 +61,7 @@ In the dashboard, open **R2** → **Create bucket**. For use with this plugin, s
 
 - Dashboard → **R2** → **Manage R2 API Tokens** (from the R2 overview or sidebar).
 - Open the **Access keys** section (wording may vary slightly) → **Create access key**.
-- Copy **Access Key ID** and **Secret Access Key** immediately; the secret is shown only once. Give the key permission to write objects to your bucket (or broader R2 permissions if you prefer).
+- Copy **Access Key ID** and **Secret Access Key** immediately; the secret is shown only once. Give the key permission to write and delete objects in your bucket (or broader R2 permissions if you prefer).
 
 In the plugin, **Access key ID secret** and **Secret access key secret** are not the raw Cloudflare strings. They are the **names of Obsidian secrets** that store those two values. Create those secrets first, then pick their names in the plugin settings.
 
@@ -93,6 +93,8 @@ Open `Settings` → `Community plugins` → `Cloudflare R2 Sync` and fill in:
 
 ## Usage
 
+### Upload images
+
 1. Open the Markdown note that contains local image references.
 2. Run `Sync images to r2` from the command palette, or click the ribbon icon.
 3. Wait for the result notice.
@@ -106,6 +108,15 @@ Image sync: 3 uploaded, 1 skipped, 0 failed, 3 trashed, 0 trash failed.
 Only successfully uploaded images are replaced. Uploaded local image files are moved to Obsidian trash after the note is updated; they are not permanently deleted. If moving a file to trash fails, the result notice reports it and the uploaded file remains in the vault.
 
 When the same local image is referenced multiple times in one note, it is uploaded once and all matching references are replaced. Wiki embeds are converted to Markdown image links, for example `![[image.png|alias]]` becomes `![](https://...)`.
+
+### Delete uploaded images
+
+1. Open the Markdown note that contains R2 image links created by this plugin.
+2. Run `Delete r2 images` from the command palette.
+3. Preview the detected images, select the images to delete, then click `Delete selected`.
+4. Wait for the result notice.
+
+Only Markdown image links under the configured `Public base URL` are listed. Successfully deleted R2 objects have their image links removed from the active note. If deleting an object fails, that link is left unchanged.
 
 ## Upload paths
 
