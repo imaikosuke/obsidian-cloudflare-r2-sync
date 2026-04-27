@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 export interface R2ClientConfig {
 	accountId: string;
@@ -11,6 +11,11 @@ export interface UploadImageOptions {
 	key: string;
 	body: ArrayBuffer;
 	contentType: string;
+}
+
+export interface DeleteImageOptions {
+	bucketName: string;
+	key: string;
 }
 
 export class ObjectAlreadyExistsError extends Error {
@@ -52,6 +57,15 @@ export class R2ImageClient {
 			}
 			throw error;
 		}
+	}
+
+	async deleteObject(options: DeleteImageOptions): Promise<void> {
+		await this.client.send(
+			new DeleteObjectCommand({
+				Bucket: options.bucketName,
+				Key: options.key,
+			})
+		);
 	}
 }
 
