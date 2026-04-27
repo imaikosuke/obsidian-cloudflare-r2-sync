@@ -62,22 +62,11 @@ export async function syncActiveNoteImages(
 		return;
 	}
 
-	const accessKeyId = plugin.app.secretStorage.getSecret(
-		plugin.settings.accessKeyIdSecretName
-	);
-	const secretAccessKey = plugin.app.secretStorage.getSecret(
-		plugin.settings.secretAccessKeySecretName
-	);
-	if (accessKeyId === null || secretAccessKey === null) {
+	const r2Client = createR2Client(plugin);
+	if (r2Client === null) {
 		new Notice("Image sync: missing secret value.");
 		return;
 	}
-
-	const r2Client = new R2ImageClient({
-		accessKeyId,
-		accountId: plugin.settings.accountId.trim(),
-		secretAccessKey,
-	});
 
 	const content = view.editor.getValue();
 	const result = await syncContent(plugin, r2Client, view.file, content);
@@ -105,7 +94,7 @@ export async function syncActiveNoteImages(
 	}
 }
 
-function getMissingSettings(plugin: CloudflareR2SyncPlugin): string[] {
+export function getMissingSettings(plugin: CloudflareR2SyncPlugin): string[] {
 	const missing: string[] = [];
 
 	if (plugin.settings.accountId.trim() === "") {
@@ -141,6 +130,26 @@ function getMissingSettings(plugin: CloudflareR2SyncPlugin): string[] {
 	}
 
 	return missing;
+}
+
+export function createR2Client(
+	plugin: CloudflareR2SyncPlugin
+): R2ImageClient | null {
+	const accessKeyId = plugin.app.secretStorage.getSecret(
+		plugin.settings.accessKeyIdSecretName
+	);
+	const secretAccessKey = plugin.app.secretStorage.getSecret(
+		plugin.settings.secretAccessKeySecretName
+	);
+	if (accessKeyId === null || secretAccessKey === null) {
+		return null;
+	}
+
+	return new R2ImageClient({
+		accessKeyId,
+		accountId: plugin.settings.accountId.trim(),
+		secretAccessKey,
+	});
 }
 
 async function syncContent(
@@ -359,7 +368,7 @@ function normalizeFileName(fileName: string): string {
 	return `${fallbackBaseName}${extension.replace(/[^a-z0-9.]/g, "")}`;
 }
 
-function buildPublicUrl(publicBaseUrl: string, objectKey: string): string {
+export function buildPublicUrl(publicBaseUrl: string, objectKey: string): string {
 	const normalizedBaseUrl = publicBaseUrl.trim().replace(/\/+$/g, "");
 	const encodedKey = normalizePath(objectKey)
 		.split("/")
@@ -367,6 +376,34 @@ function buildPublicUrl(publicBaseUrl: string, objectKey: string): string {
 		.join("/");
 
 	return `${normalizedBaseUrl}/${encodedKey}`;
+}
+
+export function getObjectKeyFromPublicUrl(
+	publicBaseUrl: string,
+	targetUrl: string
+): string | null {
+	const normalizedBaseUrl = publicBaseUrl.trim().replace(/\/+$/g, "");
+	if (!targetUrl.startsWith(`${normalizedBaseUrl}/`)) {
+		return null;
+	}
+
+	const encodedKey = targetUrl
+		.slice(normalizedBaseUrl.length + 1)
+		.split(/[?#]/)[0];
+	if (encodedKey.trim() === "") {
+		return null;
+	}
+
+	try {
+		return normalizePath(
+			encodedKey
+				.split("/")
+				.map((segment) => decodeURIComponent(segment))
+				.join("/")
+		);
+	} catch {
+		return null;
+	}
 }
 
 function getImageContentType(extension: string): string {
