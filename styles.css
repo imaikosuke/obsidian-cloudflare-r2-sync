@@ -1,1 +1,55 @@
-/* No custom styles are required for the current settings UI. */
+.cloudflare-r2-sync-delete-description {
+	color: var(--text-muted);
+	margin-bottom: var(--size-4-4);
+}
+
+.cloudflare-r2-sync-delete-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+	max-height: 55vh;
+	overflow: auto;
+}
+
+.cloudflare-r2-sync-delete-item {
+	align-items: center;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	display: grid;
+	gap: var(--size-4-3);
+	grid-template-columns: auto 72px minmax(0, 1fr);
+	padding: var(--size-4-3);
+}
+
+.cloudflare-r2-sync-delete-preview {
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+	height: 72px;
+	object-fit: contain;
+	width: 72px;
+}
+
+.cloudflare-r2-sync-delete-details {
+	min-width: 0;
+}
+
+.cloudflare-r2-sync-delete-key {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+	overflow-wrap: anywhere;
+}
+
+.cloudflare-r2-sync-delete-url,
+.cloudflare-r2-sync-delete-count {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	overflow-wrap: anywhere;
+}
+
+.cloudflare-r2-sync-delete-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+	justify-content: flex-end;
+	margin-top: var(--size-4-4);
+}
