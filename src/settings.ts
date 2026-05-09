@@ -12,6 +12,11 @@ export interface PluginSettings {
 	 * {minute}, {second}, {timestamp} (yyyymmddhhmmss, local), {filename} (sanitized).
 	 */
 	objectKeyTemplate: string;
+	/**
+	 * Optional template for cover uploads only. Same placeholders as
+	 * `objectKeyTemplate`. Empty string means use `objectKeyTemplate`.
+	 */
+	coverObjectKeyTemplate: string;
 	publicBaseUrl: string;
 	accessKeyIdSecretName: string;
 	secretAccessKeySecretName: string;
@@ -27,6 +32,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	accountId: "",
 	bucketName: "",
 	objectKeyTemplate: DEFAULT_OBJECT_KEY_TEMPLATE,
+	coverObjectKeyTemplate: "",
 	publicBaseUrl: "",
 	accessKeyIdSecretName: "",
 	secretAccessKeySecretName: "",

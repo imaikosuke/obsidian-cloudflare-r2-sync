@@ -1,3 +1,8 @@
+/* Ephemeral file input for cover picker (appended to document.body). */
+.cloudflare-r2-sync-hidden-file-input {
+	display: none;
+}
+
 .cloudflare-r2-sync-delete-description {
 	color: var(--text-muted);
 	margin-bottom: var(--size-4-4);

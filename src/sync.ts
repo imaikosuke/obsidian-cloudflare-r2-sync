@@ -472,6 +472,24 @@ export function migrateLegacySettingsFromRaw(
 	};
 }
 
+export function resolveCoverObjectKeyTemplate(
+	settings: PluginSettings
+): string {
+	const cover = normalizeTemplateSlashes(settings.coverObjectKeyTemplate ?? "");
+	if (cover === "") {
+		return settings.objectKeyTemplate;
+	}
+
+	return settings.coverObjectKeyTemplate;
+}
+
+/** True when cover uploads use `objectKeyTemplate` (cover field empty). */
+export function isCoverObjectKeyTemplateInherited(
+	settings: PluginSettings
+): boolean {
+	return normalizeTemplateSlashes(settings.coverObjectKeyTemplate ?? "") === "";
+}
+
 export function buildObjectKeyFromTemplate(
 	fileName: string,
 	date: Date,

@@ -2,7 +2,12 @@ import { App, PluginSettingTab, SecretComponent, Setting } from "obsidian";
 import type CloudflareR2SyncPlugin from "../../main";
 import { normalizeR2CachePreset, type R2CachePreset } from "../r2";
 import { DEFAULT_OBJECT_KEY_TEMPLATE } from "../settings";
-import { buildObjectKeyFromTemplate, buildPublicUrl } from "../sync";
+import {
+	buildObjectKeyFromTemplate,
+	buildPublicUrl,
+	isCoverObjectKeyTemplateInherited,
+	resolveCoverObjectKeyTemplate,
+} from "../sync";
 
 /** Fixed date for the template example line (15 Apr 2026, 14:30:22 local). */
 const OBJECT_KEY_EXAMPLE_DATE = new Date(2026, 3, 15, 14, 30, 22);
@@ -29,6 +34,7 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		let refreshObjectKeyExample: () => void = () => {};
+		let refreshCoverObjectKeyExample: () => void = () => {};
 
 		new Setting(containerEl)
 			.setName("R2 connection")
@@ -71,13 +77,14 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 						this.plugin.settings.publicBaseUrl = value.trim();
 						await this.plugin.saveSettings();
 						refreshObjectKeyExample();
+						refreshCoverObjectKeyExample();
 					});
 			});
 
 		const objectKeySetting = new Setting(containerEl)
 			.setName("Object key template")
 			.setDesc(
-				"Path relative to the bucket for each object. Use placeholders {year}, {month}, {day}, {hour}, {minute}, {second}, {timestamp} (compact local upload time), and {filename} (sanitized)."
+				"Path relative to the bucket for article body images. Use placeholders {year}, {month}, {day}, {hour}, {minute}, {second}, {timestamp} (compact local upload time), and {filename} (sanitized)."
 			);
 
 		const objectKeyExampleLine = objectKeySetting.descEl.createDiv({
@@ -106,10 +113,51 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 					this.plugin.settings.objectKeyTemplate = String(value);
 					await this.plugin.saveSettings();
 					refreshObjectKeyExample();
+					refreshCoverObjectKeyExample();
 				});
 		});
 
 		refreshObjectKeyExample();
+
+		const coverObjectKeySetting = new Setting(containerEl)
+			.setName("Cover object key template")
+			.setDesc(
+				"Optional path template for cover uploads only. Same placeholders as object key template. Leave empty to reuse the article template."
+			);
+
+		const coverObjectKeyExampleLine = coverObjectKeySetting.descEl.createDiv({
+			cls: "setting-item-description",
+		});
+
+		refreshCoverObjectKeyExample = (): void => {
+			const samplePath = buildObjectKeyFromTemplate(
+				OBJECT_KEY_EXAMPLE_FILENAME,
+				OBJECT_KEY_EXAMPLE_DATE,
+				resolveCoverObjectKeyTemplate(this.plugin.settings)
+			);
+			const baseUrl = this.plugin.settings.publicBaseUrl.trim();
+			const exampleTarget =
+				baseUrl === "" ? samplePath : buildPublicUrl(baseUrl, samplePath);
+			const suffix = isCoverObjectKeyTemplateInherited(this.plugin.settings)
+				? " (same as article template)"
+				: "";
+			coverObjectKeyExampleLine.setText(`Example: ${exampleTarget}${suffix}`);
+		};
+
+		coverObjectKeySetting.addText((text) => {
+			text
+				.setPlaceholder("e.g. cover/{year}/{month}/{timestamp}-{filename}")
+				.setValue(
+					String(this.plugin.settings.coverObjectKeyTemplate ?? "")
+				)
+				.onChange(async (value) => {
+					this.plugin.settings.coverObjectKeyTemplate = String(value);
+					await this.plugin.saveSettings();
+					refreshCoverObjectKeyExample();
+				});
+		});
+
+		refreshCoverObjectKeyExample();
 
 		new Setting(containerEl)
 			.setName("Upload cache control")

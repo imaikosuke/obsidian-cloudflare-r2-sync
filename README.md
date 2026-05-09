@@ -12,7 +12,7 @@ Cloudflare R2 Sync uploads local image files referenced from the active Markdown
 
 **Article body images:** `png`, `jpeg`, `jpg`, and `bmp` references are re-encoded to **WebP** before upload (quality is configurable in settings). Other supported rasters and `svg` are uploaded as-is.
 
-**Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to frontmatter `cover`.
+**Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to frontmatter `cover`. You can store cover objects under a different R2 path from article body images (see **Cover object key template** below).
 
 Supported image references:
 
@@ -91,11 +91,14 @@ Open `Settings` → `Community plugins` → `Cloudflare R2 Sync` and configure:
 
 Each successful `PutObject` sets object `Cache-Control` from the plugin setting **Upload cache control** (default matches `public, max-age=31536000, immutable`). Your Cloudflare cache rules may still override at the edge.
 
-R2 connection and secrets:
+Connection, upload paths, and secrets:
 
 - `Account ID`: Your Cloudflare account ID.
 - `Bucket name`: The R2 bucket to upload images to.
 - `Public base URL`: The URL prefix used in the replaced Markdown links, for example `https://images.example.com`.
+- `Object key template`: Path pattern for **article body images** synced with **Sync images to r2** (placeholders: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}`, `{filename}`).
+- `Cover object key template`: Optional path pattern used only for **Upload cover image**. Same placeholders as above. Leave empty to reuse `Object key template`.
+- `Upload cache control`: `Cache-Control` applied to each successful upload.
 - `Access key ID secret`: Select the Obsidian secret that contains the R2 access key ID.
 - `Secret access key secret`: Select the Obsidian secret that contains the R2 secret access key.
 
@@ -129,7 +132,7 @@ When the same local image is referenced multiple times in one note, it is upload
 
 1. Open the Markdown note whose YAML frontmatter should receive `cover`.
 2. Run **Upload cover image** from the command palette.
-3. Choose a PNG file. The plugin uploads it to R2 (as PNG), then sets `cover:` in the active file’s frontmatter to the public URL.
+3. Choose a PNG file. The plugin uploads it to R2 (as PNG) using **Cover object key template** (or **Object key template** when the cover template is empty), then sets `cover:` in the active file’s frontmatter to the public URL.
 
 ### Delete uploaded images
 
@@ -142,7 +145,11 @@ Only Markdown image links under the configured `Public base URL` are listed. Suc
 
 ## Upload paths
 
-Configure **Object key template** in the plugin settings. Placeholders are expanded with the upload time in **local time**: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}` (compact `YYYYMMDDHHmmss`), and `{filename}` (normalized like note images: lowercase, safe characters).
+Article body images and cover images both use the same placeholder rules, but you can choose **different templates** so covers live under their own prefix (for example `cover/…`).
+
+### Article body images (`Object key template`)
+
+Used when you run **Sync images to r2**. Placeholders are expanded with the upload time in **local time**: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}` (compact `YYYYMMDDHHmmss`), and `{filename}` (normalized: lowercase, safe characters).
 
 The default template matches the original layout:
 
@@ -155,6 +162,19 @@ For example, running the sync on April 26, 2026 at 14:30:22 for `My Screenshot 0
 ```text
 2026/04/20260426143022-my-screenshot-01.webp
 ```
+
+### Cover images (`Cover object key template`)
+
+Used when you run **Upload cover image**. If you leave this field empty, the plugin uses the same template as **Object key template**.
+
+Example: keep the default for article images but put covers under a `cover` folder:
+
+| Setting | Example value |
+| --- | --- |
+| Object key template | `{year}/{month}/{timestamp}-{filename}` |
+| Cover object key template | `cover/{year}/{month}/{timestamp}-{filename}` |
+
+Front slash at the start of a template is optional; leading slashes are normalized away.
 
 Releases that only had **Object key prefix** migrate once: `blog` becomes  
 `blog/{year}/{month}/{timestamp}-{filename}`.

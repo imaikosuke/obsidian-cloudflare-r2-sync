@@ -6,6 +6,7 @@ import {
 	buildPublicUrl,
 	createR2Client,
 	getMissingSettings,
+	resolveCoverObjectKeyTemplate,
 } from "./sync";
 import {
 	formatR2ErrorForNotice,
@@ -49,7 +50,7 @@ export async function uploadCoverImage(
 	const objectKey = buildObjectKeyFromTemplate(
 		picked.name,
 		uploadDate,
-		plugin.settings.objectKeyTemplate
+		resolveCoverObjectKeyTemplate(plugin.settings)
 	);
 	const publicUrl = buildPublicUrl(plugin.settings.publicBaseUrl, objectKey);
 
@@ -104,9 +105,16 @@ function isLikelyPng(file: File): boolean {
 
 function pickPngFile(): Promise<File | null> {
 	return new Promise((resolve) => {
-		const input = activeDocument.createEl("input");
-		input.type = "file";
-		input.accept = "image/png";
+		const body = activeDocument.body;
+		if (!body) {
+			resolve(null);
+			return;
+		}
+
+		const input = body.createEl("input", {
+			cls: "cloudflare-r2-sync-hidden-file-input",
+			attr: { accept: "image/png", type: "file" },
+		});
 		let settled = false;
 
 		const finish = (value: File | null): void => {
@@ -115,6 +123,7 @@ function pickPngFile(): Promise<File | null> {
 			}
 
 			settled = true;
+			input.remove();
 			resolve(value);
 		};
 
