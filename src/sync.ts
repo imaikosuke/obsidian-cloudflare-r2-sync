@@ -5,7 +5,12 @@ import {
 	shouldConvertToWebp,
 	withWebpFileName,
 } from "./convert";
-import { ObjectAlreadyExistsError, R2ImageClient } from "./r2";
+import {
+	getCacheControlForPreset,
+	normalizeR2CachePreset,
+	ObjectAlreadyExistsError,
+	R2ImageClient,
+} from "./r2";
 
 interface ImageReference {
 	fullMatch: string;
@@ -150,9 +155,12 @@ export function createR2Client(
 		return null;
 	}
 
+	const preset = normalizeR2CachePreset(plugin.settings.r2UploadCachePreset);
+
 	return new R2ImageClient({
 		accessKeyId,
 		accountId: plugin.settings.accountId.trim(),
+		cacheControl: getCacheControlForPreset(preset),
 		secretAccessKey,
 	});
 }

@@ -1,9 +1,31 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
+export const R2_CACHE_PRESETS = {
+	yearImmutable: "public, max-age=31536000, immutable",
+	year: "public, max-age=31536000",
+	day: "public, max-age=86400",
+	hour: "public, max-age=3600",
+	revalidate: "public, max-age=0, must-revalidate",
+} as const;
+
+export type R2CachePreset = keyof typeof R2_CACHE_PRESETS;
+
+/** Same value as `R2_CACHE_PRESETS.yearImmutable`; kept for callers that need the string only. */
+export const R2_OBJECT_CACHE_CONTROL = R2_CACHE_PRESETS.yearImmutable;
+
+export function getCacheControlForPreset(preset: R2CachePreset): string {
+	return R2_CACHE_PRESETS[preset];
+}
+
+export function normalizeR2CachePreset(value: string): R2CachePreset {
+	return value in R2_CACHE_PRESETS ? (value as R2CachePreset) : "yearImmutable";
+}
+
 export interface R2ClientConfig {
 	accountId: string;
 	accessKeyId: string;
 	secretAccessKey: string;
+	cacheControl: string;
 }
 
 export interface UploadImageOptions {
@@ -18,9 +40,6 @@ export interface DeleteImageOptions {
 	key: string;
 }
 
-/** Default for R2 / browser caching; Cloudflare cache rules may override at the edge. */
-export const R2_OBJECT_CACHE_CONTROL = "public, max-age=31536000, immutable";
-
 export class ObjectAlreadyExistsError extends Error {
 	constructor(key: string) {
 		super(`Object already exists: ${key}`);
@@ -30,8 +49,10 @@ export class ObjectAlreadyExistsError extends Error {
 
 export class R2ImageClient {
 	private readonly client: S3Client;
+	private readonly cacheControl: string;
 
 	constructor(config: R2ClientConfig) {
+		this.cacheControl = config.cacheControl;
 		this.client = new S3Client({
 			credentials: {
 				accessKeyId: config.accessKeyId,
@@ -49,7 +70,7 @@ export class R2ImageClient {
 				new PutObjectCommand({
 					Body: new Uint8Array(options.body),
 					Bucket: options.bucketName,
-					CacheControl: R2_OBJECT_CACHE_CONTROL,
+					CacheControl: this.cacheControl,
 					ContentType: options.contentType,
 					IfNoneMatch: "*",
 					Key: options.key,

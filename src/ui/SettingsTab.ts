@@ -1,5 +1,14 @@
 import { App, PluginSettingTab, SecretComponent, Setting } from "obsidian";
 import type CloudflareR2SyncPlugin from "../../main";
+import { normalizeR2CachePreset, type R2CachePreset } from "../r2";
+
+const R2_CACHE_PRESET_DROPDOWN: { preset: R2CachePreset; label: string }[] = [
+	{ preset: "yearImmutable", label: "1 year, immutable" },
+	{ preset: "year", label: "1 year (no immutable directive)" },
+	{ preset: "day", label: "24 hours" },
+	{ preset: "hour", label: "1 hour" },
+	{ preset: "revalidate", label: "Always revalidate (max-age 0)" },
+];
 
 export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 	plugin: CloudflareR2SyncPlugin;
@@ -54,6 +63,26 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 						this.plugin.settings.publicBaseUrl = value.trim();
 						await this.plugin.saveSettings();
 					});
+			});
+
+		new Setting(containerEl)
+			.setName("Upload cache control")
+			.setDesc(
+				"Object cache-control metadata for uploads to r2 and browsers. Cloudflare cache rules may still override at the edge."
+			)
+			.addDropdown((dropdown) => {
+				for (const { preset, label } of R2_CACHE_PRESET_DROPDOWN) {
+					dropdown.addOption(preset, label);
+				}
+
+				const current = normalizeR2CachePreset(
+					String(this.plugin.settings.r2UploadCachePreset)
+				);
+				this.plugin.settings.r2UploadCachePreset = current;
+				dropdown.setValue(current).onChange(async (value) => {
+					this.plugin.settings.r2UploadCachePreset = normalizeR2CachePreset(value);
+					await this.plugin.saveSettings();
+				});
 			});
 
 		new Setting(containerEl)

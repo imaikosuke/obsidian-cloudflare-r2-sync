@@ -89,7 +89,7 @@ Do not paste secret values into normal text settings.
 
 Open `Settings` → `Community plugins` → `Cloudflare R2 Sync` and configure:
 
-Each successful `PutObject` sets object metadata `Cache-Control: public, max-age=31536000, immutable` (your Cloudflare cache rules may still override at the edge).
+Each successful `PutObject` sets object `Cache-Control` from the plugin setting **Upload cache control** (default matches `public, max-age=31536000, immutable`). Your Cloudflare cache rules may still override at the edge.
 
 R2 connection and secrets:
 
