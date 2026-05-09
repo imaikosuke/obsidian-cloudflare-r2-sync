@@ -85,7 +85,7 @@ function isLikelyPng(file: File): boolean {
 
 function pickPngFile(): Promise<File | null> {
 	return new Promise((resolve) => {
-		const input = activeDocument.createElement("input");
+		const input = activeDocument.createEl("input");
 		input.type = "file";
 		input.accept = "image/png";
 		let settled = false;
