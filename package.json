@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-cloudflare-r2-sync",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Sync local note images to Cloudflare R2.",
 	"main": "main.js",
 	"scripts": {
