@@ -10,9 +10,6 @@ export const R2_CACHE_PRESETS = {
 
 export type R2CachePreset = keyof typeof R2_CACHE_PRESETS;
 
-/** Same value as `R2_CACHE_PRESETS.yearImmutable`; kept for callers that need the string only. */
-export const R2_OBJECT_CACHE_CONTROL = R2_CACHE_PRESETS.yearImmutable;
-
 export function getCacheControlForPreset(preset: R2CachePreset): string {
 	return R2_CACHE_PRESETS[preset];
 }

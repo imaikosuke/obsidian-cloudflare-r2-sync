@@ -1,11 +1,11 @@
 import { Notice, Plugin } from "obsidian";
 import {
 	completeEditorDropUpload,
-	shouldInterceptEditorDrop,
-} from "./src/autoUpload";
+	tryBuildEditorDropUploadPlan,
+} from "./src/editorDropUpload";
 import { registerCommands } from "./src/commands";
 import { DEFAULT_SETTINGS, type PluginSettings } from "./src/settings";
-import { migrateLegacySettingsFromRaw } from "./src/sync";
+import { migrateLegacySettingsFromRaw } from "./src/objectKeyTemplate";
 import { CloudflareR2SyncSettingTab } from "./src/ui/SettingsTab";
 
 /**
@@ -38,11 +38,12 @@ export default class CloudflareR2SyncPlugin extends Plugin {
 				if (evt.defaultPrevented) {
 					return;
 				}
-				if (!shouldInterceptEditorDrop(this, evt)) {
+				const plan = tryBuildEditorDropUploadPlan(this, evt);
+				if (plan === null) {
 					return;
 				}
 				evt.preventDefault();
-				void completeEditorDropUpload(this, evt, editor, info);
+				void completeEditorDropUpload(this, plan, editor, info, evt);
 			})
 		);
 	}

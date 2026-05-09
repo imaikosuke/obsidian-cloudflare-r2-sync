@@ -4,10 +4,10 @@ import { normalizeR2CachePreset, type R2CachePreset } from "../r2";
 import { DEFAULT_OBJECT_KEY_TEMPLATE } from "../settings";
 import {
 	buildObjectKeyFromTemplate,
-	buildPublicUrl,
 	isCoverObjectKeyTemplateInherited,
 	resolveCoverObjectKeyTemplate,
-} from "../sync";
+} from "../objectKeyTemplate";
+import { buildPublicUrl } from "../publicR2Url";
 
 /** Fixed date for the template example line (15 Apr 2026, 14:30:22 local). */
 const OBJECT_KEY_EXAMPLE_DATE = new Date(2026, 3, 15, 14, 30, 22);

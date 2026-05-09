@@ -3,15 +3,18 @@ import type CloudflareR2SyncPlugin from "../main";
 import { ObjectAlreadyExistsError } from "./r2";
 import {
 	buildObjectKeyFromTemplate,
-	buildPublicUrl,
-	createR2Client,
-	getMissingSettings,
 	resolveCoverObjectKeyTemplate,
-} from "./sync";
+} from "./objectKeyTemplate";
+import { createR2Client, getMissingSettings } from "./pluginR2";
+import { buildPublicUrl } from "./publicR2Url";
 import {
 	formatR2ErrorForNotice,
 	truncateForNotice,
 } from "./r2ErrorInsight";
+import {
+	isLikelyPngFile,
+	pickPngFile,
+} from "./ui/coverPngPicker";
 
 export async function uploadCoverImage(
 	plugin: CloudflareR2SyncPlugin
@@ -40,7 +43,7 @@ export async function uploadCoverImage(
 		return;
 	}
 
-	if (!isLikelyPng(picked)) {
+	if (!isLikelyPngFile(picked)) {
 		new Notice("Cover upload: choose a PNG image.");
 		return;
 	}
@@ -95,46 +98,4 @@ export async function uploadCoverImage(
 	}
 
 	new Notice("Cover upload: cover URL saved to frontmatter.");
-}
-
-function isLikelyPng(file: File): boolean {
-	const lowerName = file.name.toLowerCase();
-
-	return lowerName.endsWith(".png") || file.type === "image/png";
-}
-
-function pickPngFile(): Promise<File | null> {
-	return new Promise((resolve) => {
-		const body = activeDocument.body;
-		if (!body) {
-			resolve(null);
-			return;
-		}
-
-		const input = body.createEl("input", {
-			cls: "cloudflare-r2-sync-hidden-file-input",
-			attr: { accept: "image/png", type: "file" },
-		});
-		let settled = false;
-
-		const finish = (value: File | null): void => {
-			if (settled) {
-				return;
-			}
-
-			settled = true;
-			input.remove();
-			resolve(value);
-		};
-
-		input.addEventListener("change", () => {
-			finish(input.files?.[0] ?? null);
-		});
-
-		input.addEventListener("cancel", () => {
-			finish(null);
-		});
-
-		input.click();
-	});
 }

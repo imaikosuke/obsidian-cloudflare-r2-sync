@@ -1,7 +1,7 @@
 import { readAwsSdkRequestHttpStatus } from "./r2";
 
 /** User-facing grouping for SDK / TLS / TCP failures toward r2. */
-export type R2ErrorInsightCategory =
+type R2ErrorInsightCategory =
 	| "auth"
 	| "bucket_or_key"
 	| "permission"
@@ -12,7 +12,7 @@ export type R2ErrorInsightCategory =
 	| "cors"
 	| "unknown";
 
-export interface R2ErrorInsight {
+interface R2ErrorInsight {
 	category: R2ErrorInsightCategory;
 	headline: string;
 	hint: string;
@@ -39,7 +39,7 @@ function readResponseStatus(error: unknown): number | undefined {
 	return response.statusCode;
 }
 
-export function resolveR2HttpStatus(error: unknown): number | undefined {
+function resolveR2HttpStatus(error: unknown): number | undefined {
 	return (
 		readAwsSdkRequestHttpStatus(error) ?? readResponseStatus(error)
 	);
@@ -154,7 +154,7 @@ function certificateLike(messageLower: string): boolean {
 	);
 }
 
-export function classifyR2RequestError(error: unknown): R2ErrorInsight {
+function classifyR2RequestError(error: unknown): R2ErrorInsight {
 	const httpStatus = resolveR2HttpStatus(error);
 	const { canonicalUpper, messageLower, s3XmlCodeUpper } =
 		mergeErrorStrings(error);
@@ -312,7 +312,7 @@ export function formatR2ErrorForNotice(error: unknown): string {
 	return `${bits.join(" ")}. ${i.hint}`;
 }
 
-export const MAX_DETAILED_NOTICE_LENGTH = 420;
+const MAX_DETAILED_NOTICE_LENGTH = 420;
 
 export function truncateForNotice(text: string, max = MAX_DETAILED_NOTICE_LENGTH): string {
 	if (text.length <= max) {

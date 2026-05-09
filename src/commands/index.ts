@@ -1,7 +1,7 @@
 import type CloudflareR2SyncPlugin from "../../main";
 import { uploadCoverImage } from "../cover";
-import { deleteActiveNoteR2Images } from "../delete";
-import { syncActiveNoteImages } from "../sync";
+import { deleteActiveNoteR2Images } from "../deleteActiveNoteR2Images";
+import { syncActiveNoteImages } from "../syncActiveNoteImages";
 
 export function registerCommands(plugin: CloudflareR2SyncPlugin): void {
 	plugin.addRibbonIcon("upload-cloud", "Sync images to r2", () => {

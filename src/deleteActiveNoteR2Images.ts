@@ -1,26 +1,19 @@
 import { MarkdownView, Notice } from "obsidian";
 import type CloudflareR2SyncPlugin from "../main";
 import {
-	openR2ImageDeleteModal,
-	R2ImageDeletionCandidate,
-} from "./ui/R2ImageDeleteModal";
-import {
-	createR2Client,
-	getMissingSettings,
-	getObjectKeyFromPublicUrl,
-} from "./sync";
+	collectMarkdownR2PublicImageRefs,
+	type MarkdownR2PublicImageRef,
+	removeMarkdownR2PublicImageRefs,
+} from "./noteMarkdownR2PublicLinks";
+import { createR2Client, getMissingSettings } from "./pluginR2";
 import {
 	formatR2ErrorForNotice,
 	truncateForNotice,
 } from "./r2ErrorInsight";
-
-interface R2ImageReference {
-	end: number;
-	fullMatch: string;
-	objectKey: string;
-	start: number;
-	url: string;
-}
+import {
+	openR2ImageDeleteModal,
+	type R2ImageDeletionCandidate,
+} from "./ui/R2ImageDeleteModal";
 
 interface DeleteCounts {
 	deleted: number;
@@ -50,7 +43,7 @@ export async function deleteActiveNoteR2Images(
 	}
 
 	const content = view.editor.getValue();
-	const references = collectR2ImageReferences(
+	const references = collectMarkdownR2PublicImageRefs(
 		content,
 		plugin.settings.publicBaseUrl
 	);
@@ -97,7 +90,11 @@ export async function deleteActiveNoteR2Images(
 	}
 
 	if (deletedObjectKeys.size > 0) {
-		const result = removeDeletedReferences(content, references, deletedObjectKeys);
+		const result = removeMarkdownR2PublicImageRefs(
+			content,
+			references,
+			deletedObjectKeys
+		);
 		if (result.nextContent !== content) {
 			view.editor.setValue(result.nextContent);
 		}
@@ -107,36 +104,8 @@ export async function deleteActiveNoteR2Images(
 	new Notice(formatDeleteNotice(counts));
 }
 
-function collectR2ImageReferences(
-	content: string,
-	publicBaseUrl: string
-): R2ImageReference[] {
-	const references: R2ImageReference[] = [];
-	const markdownImagePattern = /!\[[^\]\n]*\]\(([^)\n]+)\)/g;
-	let match = markdownImagePattern.exec(content);
-
-	while (match) {
-		const fullMatch = match[0];
-		const url = parseMarkdownTarget(match[1]);
-		const objectKey = getObjectKeyFromPublicUrl(publicBaseUrl, url);
-		if (objectKey !== null) {
-			references.push({
-				end: match.index + fullMatch.length,
-				fullMatch,
-				objectKey,
-				start: match.index,
-				url,
-			});
-		}
-
-		match = markdownImagePattern.exec(content);
-	}
-
-	return references;
-}
-
 function toDeletionCandidates(
-	references: R2ImageReference[]
+	references: MarkdownR2PublicImageRef[]
 ): R2ImageDeletionCandidate[] {
 	const candidates = new Map<string, R2ImageDeletionCandidate>();
 
@@ -155,35 +124,6 @@ function toDeletionCandidates(
 	}
 
 	return [...candidates.values()];
-}
-
-function removeDeletedReferences(
-	content: string,
-	references: R2ImageReference[],
-	deletedObjectKeys: Set<string>
-): { nextContent: string; removedCount: number } {
-	let nextContent = content;
-	let removedCount = 0;
-	const deletedReferences = references
-		.filter((reference) => deletedObjectKeys.has(reference.objectKey))
-		.sort((a, b) => b.start - a.start);
-
-	for (const reference of deletedReferences) {
-		nextContent =
-			nextContent.slice(0, reference.start) + nextContent.slice(reference.end);
-		removedCount += 1;
-	}
-
-	return { nextContent, removedCount };
-}
-
-function parseMarkdownTarget(rawTarget: string): string {
-	const trimmedTarget = rawTarget.trim();
-	if (trimmedTarget.startsWith("<") && trimmedTarget.endsWith(">")) {
-		return trimmedTarget.slice(1, -1);
-	}
-
-	return trimmedTarget;
 }
 
 function formatDeleteNotice(counts: DeleteCounts): string {

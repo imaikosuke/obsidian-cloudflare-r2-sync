@@ -6,109 +6,29 @@ import {
 	shouldConvertToWebp,
 	withWebpFileName,
 } from "./convert";
+import {
+	collectDroppedImageFiles,
+	effectiveDroppedImageFileName,
+	extensionFromFile,
+	extensionFromMime,
+} from "./droppedImageFiles";
+import { getImageContentType } from "./imageContentType";
+import { buildObjectKeyFromTemplate } from "./objectKeyTemplate";
+import { createR2Client, getMissingSettings } from "./pluginR2";
+import { buildPublicUrl } from "./publicR2Url";
 import type { R2ImageClient } from "./r2";
 import {
 	formatR2ErrorForNotice,
 	truncateForNotice,
 } from "./r2ErrorInsight";
-import {
-	buildObjectKeyFromTemplate,
-	buildPublicUrl,
-	createR2Client,
-	getImageContentType,
-	getMissingSettings,
-} from "./sync";
 
-const SUPPORTED_IMAGE_EXTENSIONS = new Set([
-	"bmp",
-	"gif",
-	"ico",
-	"jpeg",
-	"jpg",
-	"png",
-	"svg",
-	"webp",
-]);
+export interface EditorDropUploadPlan {
+	imageFiles: File[];
+	r2Client: R2ImageClient;
+}
 
 interface MinimalCodeMirrorView {
 	posAtCoords(coords: { x: number; y: number }): number | null;
-}
-
-function getExtensionFromPath(target: string): string {
-	const withoutSubpath = target.split("#")[0]?.split("?")[0] ?? target;
-	const dotIndex = withoutSubpath.lastIndexOf(".");
-	if (dotIndex < 0) {
-		return "";
-	}
-	return withoutSubpath.slice(dotIndex + 1).toLowerCase();
-}
-
-function extensionFromMime(mime: string): string {
-	const lower = mime.toLowerCase();
-	switch (lower) {
-		case "image/bmp":
-			return "bmp";
-		case "image/gif":
-			return "gif";
-		case "image/x-icon":
-		case "image/vnd.microsoft.icon":
-			return "ico";
-		case "image/jpeg":
-			return "jpg";
-		case "image/png":
-			return "png";
-		case "image/svg+xml":
-			return "svg";
-		case "image/webp":
-			return "webp";
-		default:
-			return "";
-	}
-}
-
-function extensionFromFile(file: File): string {
-	const fromName = getExtensionFromPath(file.name);
-	if (fromName !== "") {
-		return fromName;
-	}
-	return extensionFromMime(file.type);
-}
-
-function effectiveFileName(file: File): string {
-	const trimmed = file.name.trim();
-	if (trimmed !== "") {
-		return trimmed;
-	}
-	const ext = extensionFromFile(file);
-	if (ext !== "") {
-		return `image.${ext}`;
-	}
-	return "image.png";
-}
-
-function collectImageFiles(dataTransfer: DataTransfer | null): File[] {
-	if (!dataTransfer) {
-		return [];
-	}
-
-	const out: File[] = [];
-	const { files } = dataTransfer;
-	for (let index = 0; index < files.length; index += 1) {
-		const file = files.item(index);
-		if (!file) {
-			continue;
-		}
-
-		const ext = extensionFromFile(file);
-		if (ext !== "" && SUPPORTED_IMAGE_EXTENSIONS.has(ext)) {
-			out.push(file);
-			continue;
-		}
-		if (file.type.toLowerCase().startsWith("image/")) {
-			out.push(file);
-		}
-	}
-	return out;
 }
 
 function getDropPosition(editor: Editor, evt: DragEvent): {
@@ -125,7 +45,7 @@ function getDropPosition(editor: Editor, evt: DragEvent): {
 	return editor.getCursor();
 }
 
-function resolveSourcePath(info: MarkdownFileInfo | MarkdownView): string {
+function resolveSourceNotePath(info: MarkdownFileInfo | MarkdownView): string {
 	const fromInfo = info.file?.path ?? "";
 	if (fromInfo !== "") {
 		return fromInfo;
@@ -133,7 +53,7 @@ function resolveSourcePath(info: MarkdownFileInfo | MarkdownView): string {
 	return info.app.workspace.getActiveFile()?.path ?? "";
 }
 
-async function saveLocallyAndLink(
+async function saveLocalAttachmentAsMarkdown(
 	plugin: CloudflareR2SyncPlugin,
 	body: ArrayBuffer,
 	fileName: string,
@@ -159,13 +79,13 @@ async function saveLocallyAndLink(
 	return link.startsWith("!") ? link : `!${link}`;
 }
 
-async function uploadDroppedImage(
+async function uploadOneDroppedFileToR2(
 	plugin: CloudflareR2SyncPlugin,
 	r2Client: R2ImageClient,
 	file: File,
 	sourcePath: string
 ): Promise<string> {
-	const displayName = effectiveFileName(file);
+	const displayName = effectiveDroppedImageFileName(file);
 	const ext = extensionFromFile(file);
 	let body: ArrayBuffer;
 	let contentType: string;
@@ -178,7 +98,12 @@ async function uploadDroppedImage(
 			body = await convertToWebp(rawBody, plugin.settings.webpQuality);
 		} catch {
 			const rawBody = await file.arrayBuffer();
-			return saveLocallyAndLink(plugin, rawBody, displayName, sourcePath);
+			return saveLocalAttachmentAsMarkdown(
+				plugin,
+				rawBody,
+				displayName,
+				sourcePath
+			);
 		}
 		contentType = "image/webp";
 		keyFileName = withWebpFileName(displayName);
@@ -216,63 +141,69 @@ async function uploadDroppedImage(
 		} else {
 			new Notice("Drop upload failed; saved image locally.");
 		}
-		return saveLocallyAndLink(plugin, body, keyFileName, sourcePath);
+		return saveLocalAttachmentAsMarkdown(
+			plugin,
+			body,
+			keyFileName,
+			sourcePath
+		);
 	}
 }
 
 /**
- * Synchronous guard for {@link completeEditorDropUpload}. When true, the
- * caller should call {@link DragEvent.preventDefault} on the drop event.
+ * When non-null, the caller should {@link DragEvent.preventDefault} and pass this
+ * plan to {@link completeEditorDropUpload}.
  */
-export function shouldInterceptEditorDrop(
+export function tryBuildEditorDropUploadPlan(
 	plugin: CloudflareR2SyncPlugin,
 	evt: DragEvent
-): boolean {
+): EditorDropUploadPlan | null {
 	if (!plugin.settings.autoUploadOnDrop) {
-		return false;
+		return null;
 	}
 
-	const imageFiles = collectImageFiles(evt.dataTransfer);
+	const imageFiles = collectDroppedImageFiles(evt.dataTransfer);
 	if (imageFiles.length === 0) {
-		return false;
+		return null;
 	}
 
 	if (getMissingSettings(plugin).length > 0) {
-		return false;
+		return null;
 	}
 
-	if (createR2Client(plugin) === null) {
-		return false;
+	const r2Client = createR2Client(plugin);
+	if (r2Client === null) {
+		return null;
 	}
 
-	return true;
+	return { imageFiles, r2Client };
 }
 
 /**
- * Completes an intercepted drop: uploads images to r2 (or saves locally on
- * failure) and inserts markdown at the drop position. Call only after
+ * Completes an intercepted drop: uploads to r2 (or saves locally on failure)
+ * and inserts markdown at the drop position. Call only after
  * {@link DragEvent.preventDefault}.
  */
 export async function completeEditorDropUpload(
 	plugin: CloudflareR2SyncPlugin,
-	evt: DragEvent,
+	plan: EditorDropUploadPlan,
 	editor: Editor,
-	info: MarkdownView | MarkdownFileInfo
+	info: MarkdownView | MarkdownFileInfo,
+	evt: DragEvent
 ): Promise<void> {
-	const imageFiles = collectImageFiles(evt.dataTransfer);
-	const r2Client = createR2Client(plugin);
-	if (r2Client === null || imageFiles.length === 0) {
+	const { imageFiles, r2Client } = plan;
+	if (imageFiles.length === 0) {
 		return;
 	}
 
-	const sourcePath = resolveSourcePath(info);
+	const sourcePath = resolveSourceNotePath(info);
 	const dropPos = getDropPosition(editor, evt);
 	const lines: string[] = [];
 
 	try {
 		for (const file of imageFiles) {
 			lines.push(
-				await uploadDroppedImage(plugin, r2Client, file, sourcePath)
+				await uploadOneDroppedFileToR2(plugin, r2Client, file, sourcePath)
 			);
 		}
 	} catch {
