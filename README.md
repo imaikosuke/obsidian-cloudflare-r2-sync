@@ -10,6 +10,10 @@ Sync local note images to Cloudflare R2.
 
 Cloudflare R2 Sync uploads local image files referenced from the active Markdown note to Cloudflare R2, replaces only the successfully uploaded image links with public URLs, then moves the uploaded local files to Obsidian trash.
 
+**Article body images:** `png`, `jpeg`, `jpg`, and `bmp` references are re-encoded to **WebP** before upload (quality is configurable in settings). Other supported rasters and `svg` are uploaded as-is.
+
+**Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to frontmatter `cover`.
+
 Supported image references:
 
 - Markdown images: `![alt](path/to/image.png)`
@@ -83,13 +87,21 @@ Do not paste secret values into normal text settings.
 
 ## Plugin settings
 
-Open `Settings` → `Community plugins` → `Cloudflare R2 Sync` and fill in:
+Open `Settings` → `Community plugins` → `Cloudflare R2 Sync` and configure:
+
+Each successful `PutObject` sets object metadata `Cache-Control: public, max-age=31536000, immutable` (your Cloudflare cache rules may still override at the edge).
+
+R2 connection and secrets:
 
 - `Account ID`: Your Cloudflare account ID.
 - `Bucket name`: The R2 bucket to upload images to.
 - `Public base URL`: The URL prefix used in the replaced Markdown links, for example `https://images.example.com`.
 - `Access key ID secret`: Select the Obsidian secret that contains the R2 access key ID.
 - `Secret access key secret`: Select the Obsidian secret that contains the R2 secret access key.
+
+Image conversion:
+
+- `Webp quality (article images)`: Slider from 0.5 to 1. Used only when converting `png` / `jpeg` / `jpg` / `bmp` body references to WebP.
 
 ## Usage
 
@@ -109,6 +121,12 @@ Only successfully uploaded images are replaced. Uploaded local image files are m
 
 When the same local image is referenced multiple times in one note, it is uploaded once and all matching references are replaced. Wiki embeds are converted to Markdown image links, for example `![[image.png|alias]]` becomes `![](https://...)`.
 
+### Upload cover image (PNG to frontmatter)
+
+1. Open the Markdown note whose YAML frontmatter should receive `cover`.
+2. Run **Upload cover image** from the command palette.
+3. Choose a PNG file. The plugin uploads it to R2 (as PNG), then sets `cover:` in the active file’s frontmatter to the public URL.
+
 ### Delete uploaded images
 
 1. Open the Markdown note that contains R2 image links created by this plugin.
@@ -123,22 +141,23 @@ Only Markdown image links under the configured `Public base URL` are listed. Suc
 Uploaded objects use this key format:
 
 ```text
-YYYY/MM/YYYYMMDD-normalized-file-name.ext
+YYYY/MM/YYYYMMDDHHmmss-normalized-file-name.ext
 ```
 
-For example, running the sync on April 26, 2026 for `My Screenshot 01.png` creates a key like:
+For example, running the sync on April 26, 2026 at 14:30:22 for `My Screenshot 01.png` creates a key like (WebP body upload):
 
 ```text
-2026/04/20260426-my-screenshot-01.png
+2026/04/20260426143022-my-screenshot-01.webp
 ```
 
-File names are normalized to lowercase letters, numbers, hyphens, underscores, and dots.
+The `YYYYMMDDHHmmss` segment is the upload time in local time. File names are normalized to lowercase letters, numbers, hyphens, underscores, and dots.
 
 ## Skipped and failed files
 
 - Image URLs that already start with `http://` or `https://` are skipped.
 - Missing local files are skipped.
 - Unsupported file types are ignored.
+- If WebP conversion fails for a note image, that reference fails and its link is left unchanged.
 - If an object with the same key already exists in R2, that image fails, an additional notice shows the existing object key, and its link is left unchanged.
 - If an upload fails, only that image is left unchanged.
 
