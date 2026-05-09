@@ -1,4 +1,8 @@
 import { Notice, Plugin } from "obsidian";
+import {
+	completeEditorDropUpload,
+	shouldInterceptEditorDrop,
+} from "./src/autoUpload";
 import { registerCommands } from "./src/commands";
 import { DEFAULT_SETTINGS, type PluginSettings } from "./src/settings";
 import { migrateLegacySettingsFromRaw } from "./src/sync";
@@ -29,5 +33,17 @@ export default class CloudflareR2SyncPlugin extends Plugin {
 		this.settings = { ...DEFAULT_SETTINGS, ...loaded, ...migrated };
 		this.addSettingTab(new CloudflareR2SyncSettingTab(this.app, this));
 		registerCommands(this);
+		this.registerEvent(
+			this.app.workspace.on("editor-drop", (evt, editor, info) => {
+				if (evt.defaultPrevented) {
+					return;
+				}
+				if (!shouldInterceptEditorDrop(this, evt)) {
+					return;
+				}
+				evt.preventDefault();
+				void completeEditorDropUpload(this, evt, editor, info);
+			})
+		);
 	}
 }

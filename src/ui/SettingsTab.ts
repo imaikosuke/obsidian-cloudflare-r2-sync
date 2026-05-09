@@ -204,6 +204,24 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Automation")
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName("Auto-upload on drop")
+			.setDesc(
+				"Automatically upload images to r2 when dropped into the editor. Disable to use manual sync only."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.autoUploadOnDrop)
+					.onChange(async (value) => {
+						this.plugin.settings.autoUploadOnDrop = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("Error reporting")
 			.setHeading();
 

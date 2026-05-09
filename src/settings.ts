@@ -26,6 +26,8 @@ export interface PluginSettings {
 	r2UploadCachePreset: R2CachePreset;
 	/** Show categorized r2/SDK failure text in notices (for support screenshots). */
 	notifyDetailedErrors: boolean;
+	/** When enabled, images dropped into the editor upload to r2 automatically. */
+	autoUploadOnDrop: boolean;
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -39,4 +41,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	webpQuality: 0.8,
 	r2UploadCachePreset: "yearImmutable",
 	notifyDetailedErrors: false,
+	autoUploadOnDrop: true,
 };

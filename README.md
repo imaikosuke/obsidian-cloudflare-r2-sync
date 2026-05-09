@@ -10,6 +10,8 @@ Sync local note images to Cloudflare R2.
 
 Cloudflare R2 Sync uploads local image files referenced from the active Markdown note to Cloudflare R2, replaces only the successfully uploaded image links with public URLs, then moves the uploaded local files to Obsidian trash.
 
+You can also **drop image files into the Markdown editor** so they upload to R2 and appear as `![](public URL)` at the drop position (see **Auto-upload on drop** in settings). If an upload fails, the image is saved as a normal vault attachment and linked locally instead.
+
 **Article body images:** `png`, `jpeg`, `jpg`, and `bmp` references are re-encoded to **WebP** before upload (quality is configurable in settings). Other supported rasters and `svg` are uploaded as-is.
 
 **Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to frontmatter `cover`. You can store cover objects under a different R2 path from article body images (see **Cover object key template** below).
@@ -96,21 +98,31 @@ Connection, upload paths, and secrets:
 - `Account ID`: Your Cloudflare account ID.
 - `Bucket name`: The R2 bucket to upload images to.
 - `Public base URL`: The URL prefix used in the replaced Markdown links, for example `https://images.example.com`.
-- `Object key template`: Path pattern for **article body images** synced with **Sync images to r2** (placeholders: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}`, `{filename}`).
+- `Object key template`: Path pattern for **article body images** synced with **Sync images to r2** or **Auto-upload on drop** (placeholders: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}`, `{filename}`).
 - `Cover object key template`: Optional path pattern used only for **Upload cover image**. Same placeholders as above. Leave empty to reuse `Object key template`.
 - `Upload cache control`: `Cache-Control` applied to each successful upload.
 - `Access key ID secret`: Select the Obsidian secret that contains the R2 access key ID.
 - `Secret access key secret`: Select the Obsidian secret that contains the R2 secret access key.
 
+Automation:
+
+- `Auto-upload on drop` (on by default): When you drag image files into the Markdown editor, the plugin intercepts the drop, uploads using the same rules as **Sync images to r2** (including WebP conversion for body images and the **Object key template**), and inserts markdown at the drop position. Turn this off if you only want manual sync. If R2 credentials or other required settings are missing, Obsidian’s normal attachment behavior runs instead.
+
 Image conversion:
 
-- `Webp quality (article images)`: Slider from 0.5 to 1. Used only when converting `png` / `jpeg` / `jpg` / `bmp` body references to WebP.
+- `Webp quality (article images)`: Slider from 0.5 to 1. Used when converting `png` / `jpeg` / `jpg` / `bmp` to WebP for **Sync images to r2** and **Auto-upload on drop**. Cover uploads stay PNG.
 
 Error reporting:
 
-- `Detailed error notices` (off by default): When an R2 request or local read / WebP conversion fails, show extra notices with a short category (for example credential / signature, bucket or 404, permission / 403, timeout, network), optional HTTP status or error code, and a brief hint. Useful for screenshots when asking for support. **Image sync** shows up to six unique detail lines after the summary notice; **Delete r2 images** and **Upload cover image** append detail to the failure notice when enabled.
+- `Detailed error notices` (off by default): When an R2 request or local read / WebP conversion fails, show extra notices with a short category (for example credential / signature, bucket or 404, permission / 403, timeout, network), optional HTTP status or error code, and a brief hint. Useful for screenshots when asking for support. **Image sync** shows up to six unique detail lines after the summary notice; **Delete r2 images**, **Upload cover image**, and **drop uploads** append detail to the failure notice when enabled.
 
 ## Usage
+
+### Drop images into the editor
+
+1. Open a Markdown note and focus the editor.
+2. Drag one or more supported images from your file manager onto the note. With **Auto-upload on drop** enabled and R2 configured, they upload and `![](…)` links are inserted where you dropped them.
+3. If upload fails (network, duplicate object key, and so on), the file is saved under your attachment settings and a local embed is inserted. With **Detailed error notices** on, you may see an extra notice with failure details.
 
 ### Upload images
 
@@ -149,7 +161,7 @@ Article body images and cover images both use the same placeholder rules, but yo
 
 ### Article body images (`Object key template`)
 
-Used when you run **Sync images to r2**. Placeholders are expanded with the upload time in **local time**: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}` (compact `YYYYMMDDHHmmss`), and `{filename}` (normalized: lowercase, safe characters).
+Used when you run **Sync images to r2**, and when **Auto-upload on drop** handles drops into the editor. Placeholders are expanded with the upload time in **local time**: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}` (compact `YYYYMMDDHHmmss`), and `{filename}` (normalized: lowercase, safe characters).
 
 The default template matches the original layout:
 
@@ -189,6 +201,7 @@ File names are normalized to lowercase letters, numbers, hyphens, underscores, a
 - If WebP conversion fails for a note image, that reference fails and its link is left unchanged.
 - If an object with the same key already exists in R2, that image fails, an additional notice shows the existing object key, and its link is left unchanged.
 - If an upload fails, only that image is left unchanged.
+- **Auto-upload on drop:** A duplicate key or other upload error triggers a **local fallback** (attachment + local link) instead of leaving the note empty; manual **Sync images to r2** still leaves the link unchanged when the object already exists, as above.
 
 Turn on **Detailed error notices** under **Error reporting** when you need clearer failure reasons (credentials, wrong bucket, timeouts, and so on). The summary line still shows counts such as `failed`; details appear in follow-up notices while the option is enabled.
 

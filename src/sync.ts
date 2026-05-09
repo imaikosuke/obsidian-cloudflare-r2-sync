@@ -598,7 +598,7 @@ export function getObjectKeyFromPublicUrl(
 	}
 }
 
-function getImageContentType(extension: string): string {
+export function getImageContentType(extension: string): string {
 	switch (extension.toLowerCase()) {
 		case "bmp":
 			return "image/bmp";
