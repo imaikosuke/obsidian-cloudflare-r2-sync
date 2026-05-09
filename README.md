@@ -12,7 +12,7 @@ Cloudflare R2 Sync uploads local image files referenced from the active Markdown
 
 You can also **drop image files into the Markdown editor** so they upload to R2 and appear as `![](public URL)` at the drop position (see **Auto-upload on drop** in settings). If an upload fails, the image is saved as a normal vault attachment and linked locally instead.
 
-**Article body images:** For **Sync images to r2** and **Auto-upload on drop**, `png`, `jpeg`, `jpg`, and `bmp` are re-encoded to **WebP** before upload (quality is configurable in settings). Other recognized image extensions (`gif`, `ico`, `webp`, `svg`) are uploaded as-is.
+**Article body images:** For **Sync images to r2** and **Auto-upload on drop**, you can choose whether `png`, `jpeg`, `jpg`, and `bmp` are re-encoded to **WebP** before upload (**Convert article images to webp** in settings; on by default). When conversion is on, quality is configurable (**Webp quality**). When conversion is off, those formats upload unchanged (same as other recognized image extensions: `gif`, `ico`, `webp`, `svg`).
 
 **Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to frontmatter `cover`. You can store cover objects under a different R2 path from article body images (see **Cover object key template** below). **Delete r2 images** also treats that URL as a candidate object (see **Delete uploaded images** below).
 
@@ -106,15 +106,16 @@ Connection, upload paths, and secrets:
 
 Automation:
 
-- `Auto-upload on drop` (on by default): When you drag image files into the Markdown editor, the plugin intercepts the drop, uploads using the same rules as **Sync images to r2** (including WebP conversion for body images and the **Object key template**), and inserts markdown at the drop position. Turn this off if you only want manual sync. If R2 credentials or other required settings are missing, Obsidian’s normal attachment behavior runs instead.
+- `Auto-upload on drop` (on by default): When you drag image files into the Markdown editor, the plugin intercepts the drop, uploads using the same rules as **Sync images to r2** (including optional WebP conversion for body images per **Convert article images to webp**, and the **Object key template**), and inserts markdown at the drop position. Turn this off if you only want manual sync. If R2 credentials or other required settings are missing, Obsidian’s normal attachment behavior runs instead.
 
 Image conversion:
 
-- `Webp quality (article images)`: Slider from 0.5 to 1. Used when converting `png` / `jpeg` / `jpg` / `bmp` to WebP for **Sync images to r2** and **Auto-upload on drop**. Cover uploads stay PNG.
+- `Convert article images to webp` (on by default): When enabled, `png` / `jpeg` / `jpg` / `bmp` are re-encoded to WebP for **Sync images to r2** and **Auto-upload on drop**. When disabled, those files upload in their original format. Cover uploads are always PNG and are not affected.
+- `Webp quality (article images)`: Slider from 0.5 to 1. Used only when **Convert article images to webp** is on. Cover uploads stay PNG.
 
 Error reporting:
 
-- `Detailed error notices` (off by default): When an R2 request or local read / WebP conversion fails, show extra notices with a short category (for example credential / signature, bucket or 404, permission / 403, timeout, network), optional HTTP status or error code, and a brief hint. Useful for screenshots when asking for support. **Image sync** shows up to six unique detail lines after the summary notice; **Delete r2 images**, **Upload cover image**, and **drop uploads** append detail to the failure notice when enabled.
+- `Detailed error notices` (off by default): When an R2 request or local read fails, or WebP conversion fails while **Convert article images to webp** is on, show extra notices with a short category (for example credential / signature, bucket or 404, permission / 403, timeout, network), optional HTTP status or error code, and a brief hint. Useful for screenshots when asking for support. **Image sync** shows up to six unique detail lines after the summary notice; **Delete r2 images**, **Upload cover image**, and **drop uploads** append detail to the failure notice when enabled.
 
 ## Usage
 
@@ -174,11 +175,13 @@ The default template matches the original layout:
 {year}/{month}/{timestamp}-{filename}
 ```
 
-For example, running the sync on April 26, 2026 at 14:30:22 for `My Screenshot 01.png` creates a key like (WebP body upload):
+For example, running the sync on April 26, 2026 at 14:30:22 for `My Screenshot 01.png` creates a key like this when **Convert article images to webp** is on:
 
 ```text
 2026/04/20260426143022-my-screenshot-01.webp
 ```
+
+With **Convert article images to webp** off, the same sync would use the original extension (for example `.png`) in `{filename}`.
 
 ### Cover images (`Cover object key template`)
 
@@ -203,7 +206,7 @@ File names are normalized to lowercase letters, numbers, hyphens, underscores, a
 - Image URLs that already start with `http://` or `https://` are skipped.
 - Missing local files are skipped.
 - Unsupported file types are ignored.
-- If WebP conversion fails for a note image, that reference fails and its link is left unchanged.
+- If **Convert article images to webp** is on and WebP conversion fails for a note image, that reference fails and its link is left unchanged.
 - If an object with the same key already exists in R2, that image fails, an additional notice shows the existing object key, and its link is left unchanged.
 - If an upload fails, only that image is left unchanged.
 - **Auto-upload on drop:** A duplicate key or other upload error triggers a **local fallback** (attachment + local link) instead of leaving the note empty; manual **Sync images to r2** still leaves the link unchanged when the object already exists, as above.
