@@ -20,6 +20,11 @@ export interface PluginSettings {
 	publicBaseUrl: string;
 	accessKeyIdSecretName: string;
 	secretAccessKeySecretName: string;
+	/**
+	 * When true, PNG, JPEG, JPG, and BMP are re-encoded to WebP before upload
+	 * (sync and editor drop). When false, originals are uploaded unchanged.
+	 */
+	convertArticleImagesToWebp: boolean;
 	/** WebP quality for converted article images (0–1). */
 	webpQuality: number;
 	/** Preset for `Cache-Control` on uploaded objects. */
@@ -38,6 +43,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	publicBaseUrl: "",
 	accessKeyIdSecretName: "",
 	secretAccessKeySecretName: "",
+	convertArticleImagesToWebp: true,
 	webpQuality: 0.8,
 	r2UploadCachePreset: "yearImmutable",
 	notifyDetailedErrors: false,

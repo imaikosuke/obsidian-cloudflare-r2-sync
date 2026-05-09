@@ -179,7 +179,10 @@ async function syncContent(
 		let contentType: string;
 		let keyFileName: string;
 
-		if (shouldConvertToWebp(file.extension)) {
+		if (
+			plugin.settings.convertArticleImagesToWebp &&
+			shouldConvertToWebp(file.extension)
+		) {
 			try {
 				const rawBody = await plugin.app.vault.readBinary(file);
 				body = await convertToWebp(rawBody, plugin.settings.webpQuality);

@@ -92,7 +92,11 @@ async function uploadOneDroppedFileToR2(
 	let keyFileName: string;
 	const uploadDate = new Date();
 
-	if (ext !== "" && shouldConvertToWebp(ext)) {
+	if (
+		plugin.settings.convertArticleImagesToWebp &&
+		ext !== "" &&
+		shouldConvertToWebp(ext)
+	) {
 		try {
 			const rawBody = await file.arrayBuffer();
 			body = await convertToWebp(rawBody, plugin.settings.webpQuality);

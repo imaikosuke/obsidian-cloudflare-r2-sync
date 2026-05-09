@@ -244,8 +244,24 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 			.setHeading();
 
 		new Setting(containerEl)
+			.setName("Convert article images to webp")
+			.setDesc(
+				"When enabled, PNG, JPEG, JPG, and bmp are re-encoded to webp before upload for sync images to r2 and auto-upload on drop. When disabled, originals are uploaded. Cover uploads stay PNG."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.convertArticleImagesToWebp)
+					.onChange(async (value) => {
+						this.plugin.settings.convertArticleImagesToWebp = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("Webp quality (article images)")
-			.setDesc("Quality used when converting PNG, JPEG, or bmp references to webp (0 to 1). Cover uploads stay PNG.")
+			.setDesc(
+				"Quality when converting to webp (0 to 1). Used only when convert article images to webp is on. Cover uploads stay PNG."
+			)
 			.addSlider((slider) =>
 				slider
 					.setLimits(0.5, 1, 0.05)
