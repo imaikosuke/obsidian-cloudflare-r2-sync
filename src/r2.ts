@@ -18,6 +18,9 @@ export interface DeleteImageOptions {
 	key: string;
 }
 
+/** Default for R2 / browser caching; Cloudflare cache rules may override at the edge. */
+export const R2_OBJECT_CACHE_CONTROL = "public, max-age=31536000, immutable";
+
 export class ObjectAlreadyExistsError extends Error {
 	constructor(key: string) {
 		super(`Object already exists: ${key}`);
@@ -46,6 +49,7 @@ export class R2ImageClient {
 				new PutObjectCommand({
 					Body: new Uint8Array(options.body),
 					Bucket: options.bucketName,
+					CacheControl: R2_OBJECT_CACHE_CONTROL,
 					ContentType: options.contentType,
 					IfNoneMatch: "*",
 					Key: options.key,
