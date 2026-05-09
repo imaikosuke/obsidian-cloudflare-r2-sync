@@ -6,6 +6,7 @@ import {
 	resolveCoverObjectKeyTemplate,
 } from "./objectKeyTemplate";
 import { createR2Client, getMissingSettings } from "./pluginR2";
+import { resolveCoverFrontmatterProperty } from "./settings";
 import { buildPublicUrl } from "./publicR2Url";
 import {
 	formatR2ErrorForNotice,
@@ -87,8 +88,8 @@ export async function uploadCoverImage(
 
 	try {
 		await plugin.app.fileManager.processFrontMatter(view.file, (frontmatter) => {
-			const data = frontmatter as { cover?: string };
-			data.cover = publicUrl;
+			const data = frontmatter as Record<string, unknown>;
+			data[resolveCoverFrontmatterProperty(plugin.settings)] = publicUrl;
 		});
 	} catch {
 		new Notice(

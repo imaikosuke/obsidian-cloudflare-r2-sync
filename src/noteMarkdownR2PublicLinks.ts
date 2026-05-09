@@ -9,6 +9,10 @@ export interface MarkdownR2PublicImageRef {
 	url: string;
 }
 
+function escapeRegExp(text: string): string {
+	return text.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
+}
+
 function stripYamlStringScalar(raw: string): string {
 	const t = raw.trim();
 	if (t.length >= 2 && t.startsWith('"') && t.endsWith('"')) {
@@ -43,7 +47,8 @@ function matchLeadingYamlFrontmatter(
 
 function collectFrontmatterCoverR2PublicRefs(
 	content: string,
-	publicBaseUrl: string
+	publicBaseUrl: string,
+	frontmatterPropertyKey: string
 ): MarkdownR2PublicImageRef[] {
 	const fm = matchLeadingYamlFrontmatter(content);
 	if (fm === null) {
@@ -53,6 +58,12 @@ function collectFrontmatterCoverR2PublicRefs(
 	const { inner, innerStart } = fm;
 	const references: MarkdownR2PublicImageRef[] = [];
 	let i = 0;
+	const key = frontmatterPropertyKey.trim() === ""
+		? "cover"
+		: frontmatterPropertyKey.trim();
+	const linePattern = new RegExp(
+		`^\\s*${escapeRegExp(key)}\\s*:\\s*(.+)$`
+	);
 
 	while (i < inner.length) {
 		const lineEndRel = inner.indexOf("\n", i);
@@ -62,7 +73,7 @@ function collectFrontmatterCoverR2PublicRefs(
 		const lineAbsStart = innerStart + i;
 		const lineAbsEndExclusive = innerStart + (hasNl ? lineEndRel : inner.length);
 
-		const coverMatch = /^\s*cover\s*:\s*(.+)$/.exec(line);
+		const coverMatch = linePattern.exec(line);
 		if (coverMatch) {
 			const url = stripYamlStringScalar(coverMatch[1].trim());
 			const objectKey = getObjectKeyFromPublicUrl(publicBaseUrl, url);
@@ -91,7 +102,8 @@ function collectFrontmatterCoverR2PublicRefs(
 
 export function collectMarkdownR2PublicImageRefs(
 	content: string,
-	publicBaseUrl: string
+	publicBaseUrl: string,
+	frontmatterCoverPropertyKey: string
 ): MarkdownR2PublicImageRef[] {
 	const references: MarkdownR2PublicImageRef[] = [];
 	const markdownImagePattern = /!\[[^\]\n]*\]\(([^)\n]+)\)/g;
@@ -114,7 +126,13 @@ export function collectMarkdownR2PublicImageRefs(
 		match = markdownImagePattern.exec(content);
 	}
 
-	references.push(...collectFrontmatterCoverR2PublicRefs(content, publicBaseUrl));
+	references.push(
+		...collectFrontmatterCoverR2PublicRefs(
+			content,
+			publicBaseUrl,
+			frontmatterCoverPropertyKey
+		)
+	);
 
 	return references;
 }

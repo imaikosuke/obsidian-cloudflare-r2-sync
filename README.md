@@ -14,7 +14,7 @@ You can also **drop image files into the Markdown editor** so they upload to R2 
 
 **Article body images:** For **Sync images to r2** and **Auto-upload on drop**, you can choose whether `png`, `jpeg`, `jpg`, and `bmp` are re-encoded to **WebP** before upload (**Convert article images to webp** in settings; on by default). When conversion is on, quality is configurable (**Webp quality**). When conversion is off, those formats upload unchanged (same as other recognized image extensions: `gif`, `ico`, `webp`, `svg`).
 
-**Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to frontmatter `cover`. You can store cover objects under a different R2 path from article body images (see **Cover object key template** below). **Delete r2 images** also treats that URL as a candidate object (see **Delete uploaded images** below).
+**Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to a YAML frontmatter property (default **`cover`**; configurable as **Cover frontmatter property** in settings). You can store cover objects under a different R2 path from article body images (see **Cover object key template** below). **Delete r2 images** scans the same frontmatter key for URLs under **Public base URL** (see **Delete uploaded images** below).
 
 Supported image references:
 
@@ -100,6 +100,7 @@ Connection, upload paths, and secrets:
 - `Public base URL`: The URL prefix used in the replaced Markdown links, for example `https://images.example.com`.
 - `Object key template`: Path pattern for **article body images** synced with **Sync images to r2** or **Auto-upload on drop** (placeholders: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}`, `{filename}`).
 - `Cover object key template`: Optional path pattern used only for **Upload cover image**. Same placeholders as above. Leave empty to reuse `Object key template`.
+- `Cover frontmatter property`: YAML key where **Upload cover image** writes the public URL, and where **Delete r2 images** looks for a matching cover URL. Leave empty to use `cover`.
 - `Upload cache control`: `Cache-Control` applied to each successful upload.
 - `Access key ID secret`: Select the Obsidian secret that contains the R2 access key ID.
 - `Secret access key secret`: Select the Obsidian secret that contains the R2 secret access key.
@@ -143,13 +144,13 @@ When the same local image is referenced multiple times in one note, it is upload
 
 ### Upload cover image (PNG to frontmatter)
 
-1. Open the Markdown note whose YAML frontmatter should receive `cover`.
+1. Open the Markdown note whose YAML frontmatter should receive the cover URL (by default a line `cover:`, or whatever you set under **Cover frontmatter property**).
 2. Run **Upload cover image** from the command palette.
-3. Choose a PNG file. The plugin uploads it to R2 (as PNG) using **Cover object key template** (or **Object key template** when the cover template is empty), then sets `cover:` in the active file’s frontmatter to the public URL.
+3. Choose a PNG file. The plugin uploads it to R2 (as PNG) using **Cover object key template** (or **Object key template** when the cover template is empty), then sets that property in the active file’s frontmatter to the public URL.
 
 ### Delete uploaded images
 
-1. Open the Markdown note that contains R2 image links created by this plugin (and/or a frontmatter cover URL pointing at R2).
+1. Open the Markdown note that contains R2 image links created by this plugin (and/or a frontmatter URL under your **Cover frontmatter property** pointing at R2).
 2. Run `Delete r2 images` from the command palette.
 3. Preview the detected images, select the images to delete, then click `Delete selected`.
 4. Wait for the result notice.
@@ -157,9 +158,9 @@ When the same local image is referenced multiple times in one note, it is upload
 The plugin lists every reference whose URL starts with the configured **Public base URL**:
 
 - Markdown image links: `![](https://…)` (and angle-bracket targets).
-- YAML **frontmatter** in the leading `---` block: a single-line `cover:` whose value is that public URL (plain, double-quoted, or single-quoted).
+- YAML **frontmatter** in the leading `---` block: a single line `key:` matching **Cover frontmatter property** (default `cover:`) whose value is that public URL (plain, double-quoted, or single-quoted).
 
-Successfully deleted objects are removed from the note: Markdown links are stripped, and a deleted cover removes the entire `cover:` line from frontmatter. If deleting an object in R2 fails, the corresponding note text is left unchanged.
+Successfully deleted objects are removed from the note: Markdown links are stripped, and a deleted cover removes the entire matching frontmatter line. If deleting an object in R2 fails, the corresponding note text is left unchanged.
 
 ## Upload paths
 
@@ -235,7 +236,7 @@ The TypeScript under `src/` is grouped by responsibility (plugin entry stays at 
 | R2 connection | `pluginR2.ts` (secrets and client from plugin settings), `r2.ts` (S3 client wrapper) |
 | URLs and keys | `publicR2Url.ts`, `objectKeyTemplate.ts` (templates, settings migration) |
 | Images | `imagePaths.ts`, `imageContentType.ts`, `convert.ts`, `droppedImageFiles.ts` |
-| Markdown / vault | `noteBodyImageRefs.ts` (local embeds for sync), `noteMarkdownR2PublicLinks.ts` (public URL embeds and frontmatter `cover` for delete) |
+| Markdown / vault | `noteBodyImageRefs.ts` (local embeds for sync), `noteMarkdownR2PublicLinks.ts` (public URL embeds and configurable frontmatter cover property for delete) |
 | Features | `syncActiveNoteImages.ts`, `editorDropUpload.ts`, `cover.ts`, `deleteActiveNoteR2Images.ts` |
 | Errors | `r2ErrorInsight.ts` |
 | Settings | `settings.ts`, `ui/SettingsTab.ts` |

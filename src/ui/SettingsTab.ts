@@ -160,6 +160,22 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 		refreshCoverObjectKeyExample();
 
 		new Setting(containerEl)
+			.setName("Cover frontmatter property")
+			.setDesc(
+				"YAML key for the cover image public URL (upload cover image writes here; delete r2 images reads it). Blank uses cover."
+			)
+			.addText((text) => {
+				text
+					.setValue(
+						String(this.plugin.settings.coverFrontmatterProperty ?? "")
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.coverFrontmatterProperty = String(value);
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
 			.setName("Upload cache control")
 			.setDesc(
 				"Object cache-control metadata for uploads to r2 and browsers. Cloudflare cache rules may still override at the edge."

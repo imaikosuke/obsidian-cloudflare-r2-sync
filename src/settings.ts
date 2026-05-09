@@ -17,6 +17,8 @@ export interface PluginSettings {
 	 * `objectKeyTemplate`. Empty string means use `objectKeyTemplate`.
 	 */
 	coverObjectKeyTemplate: string;
+	/** YAML frontmatter key where the cover image public URL is stored. */
+	coverFrontmatterProperty: string;
 	publicBaseUrl: string;
 	accessKeyIdSecretName: string;
 	secretAccessKeySecretName: string;
@@ -35,11 +37,20 @@ export interface PluginSettings {
 	autoUploadOnDrop: boolean;
 }
 
+/** Trims; empty falls back so existing vaults keep using `cover`. */
+export function resolveCoverFrontmatterProperty(
+	settings: Pick<PluginSettings, "coverFrontmatterProperty">
+): string {
+	const t = String(settings.coverFrontmatterProperty ?? "").trim();
+	return t === "" ? "cover" : t;
+}
+
 export const DEFAULT_SETTINGS: PluginSettings = {
 	accountId: "",
 	bucketName: "",
 	objectKeyTemplate: DEFAULT_OBJECT_KEY_TEMPLATE,
 	coverObjectKeyTemplate: "",
+	coverFrontmatterProperty: "cover",
 	publicBaseUrl: "",
 	accessKeyIdSecretName: "",
 	secretAccessKeySecretName: "",

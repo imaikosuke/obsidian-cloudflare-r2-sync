@@ -10,6 +10,7 @@ import {
 	formatR2ErrorForNotice,
 	truncateForNotice,
 } from "./r2ErrorInsight";
+import { resolveCoverFrontmatterProperty } from "./settings";
 import {
 	openR2ImageDeleteModal,
 	type R2ImageDeletionCandidate,
@@ -45,7 +46,8 @@ export async function deleteActiveNoteR2Images(
 	const content = view.editor.getValue();
 	const references = collectMarkdownR2PublicImageRefs(
 		content,
-		plugin.settings.publicBaseUrl
+		plugin.settings.publicBaseUrl,
+		resolveCoverFrontmatterProperty(plugin.settings)
 	);
 	if (references.length === 0) {
 		new Notice("Image delete: no r2 image links found.");
