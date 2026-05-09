@@ -243,6 +243,8 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 			.setName("Image conversion")
 			.setHeading();
 
+		let refreshWebpQualityRowVisibility: () => void = () => {};
+
 		new Setting(containerEl)
 			.setName("Convert article images to webp")
 			.setDesc(
@@ -254,13 +256,14 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.convertArticleImagesToWebp = value;
 						await this.plugin.saveSettings();
+						refreshWebpQualityRowVisibility();
 					})
 			);
 
-		new Setting(containerEl)
+		const webpQualitySetting = new Setting(containerEl)
 			.setName("Webp quality (article images)")
 			.setDesc(
-				"Quality when converting to webp (0 to 1). Used only when convert article images to webp is on. Cover uploads stay PNG."
+				"Quality when converting to webp (0 to 1). Cover uploads stay PNG."
 			)
 			.addSlider((slider) =>
 				slider
@@ -272,5 +275,12 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
+		refreshWebpQualityRowVisibility = (): void => {
+			webpQualitySetting.settingEl.style.display =
+				this.plugin.settings.convertArticleImagesToWebp ? "" : "none";
+		};
+
+		refreshWebpQualityRowVisibility();
 	}
 }
