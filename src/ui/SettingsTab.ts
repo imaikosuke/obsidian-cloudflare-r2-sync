@@ -1,6 +1,12 @@
 import { App, PluginSettingTab, SecretComponent, Setting } from "obsidian";
 import type CloudflareR2SyncPlugin from "../../main";
 import { normalizeR2CachePreset, type R2CachePreset } from "../r2";
+import { DEFAULT_OBJECT_KEY_TEMPLATE } from "../settings";
+import { buildObjectKeyFromTemplate, buildPublicUrl } from "../sync";
+
+/** Fixed date for the template example line (15 Apr 2026, 14:30:22 local). */
+const OBJECT_KEY_EXAMPLE_DATE = new Date(2026, 3, 15, 14, 30, 22);
+const OBJECT_KEY_EXAMPLE_FILENAME = "example.png";
 
 const R2_CACHE_PRESET_DROPDOWN: { preset: R2CachePreset; label: string }[] = [
 	{ preset: "yearImmutable", label: "1 year, immutable" },
@@ -21,6 +27,8 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+
+		let refreshObjectKeyExample: () => void = () => {};
 
 		new Setting(containerEl)
 			.setName("R2 connection")
@@ -62,8 +70,46 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.publicBaseUrl = value.trim();
 						await this.plugin.saveSettings();
+						refreshObjectKeyExample();
 					});
 			});
+
+		const objectKeySetting = new Setting(containerEl)
+			.setName("Object key template")
+			.setDesc(
+				"Path relative to the bucket for each object. Use placeholders {year}, {month}, {day}, {hour}, {minute}, {second}, {timestamp} (compact local upload time), and {filename} (sanitized)."
+			);
+
+		const objectKeyExampleLine = objectKeySetting.descEl.createDiv({
+			cls: "setting-item-description",
+		});
+
+		refreshObjectKeyExample = (): void => {
+			const samplePath = buildObjectKeyFromTemplate(
+				OBJECT_KEY_EXAMPLE_FILENAME,
+				OBJECT_KEY_EXAMPLE_DATE,
+				String(this.plugin.settings.objectKeyTemplate ?? "")
+			);
+			const baseUrl = this.plugin.settings.publicBaseUrl.trim();
+			const exampleTarget =
+				baseUrl === "" ? samplePath : buildPublicUrl(baseUrl, samplePath);
+			objectKeyExampleLine.setText(`Example: ${exampleTarget}`);
+		};
+
+		objectKeySetting.addText((text) => {
+			text
+				.setPlaceholder(DEFAULT_OBJECT_KEY_TEMPLATE)
+				.setValue(
+					String(this.plugin.settings.objectKeyTemplate ?? "")
+				)
+				.onChange(async (value) => {
+					this.plugin.settings.objectKeyTemplate = String(value);
+					await this.plugin.saveSettings();
+					refreshObjectKeyExample();
+				});
+		});
+
+		refreshObjectKeyExample();
 
 		new Setting(containerEl)
 			.setName("Upload cache control")

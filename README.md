@@ -142,10 +142,12 @@ Only Markdown image links under the configured `Public base URL` are listed. Suc
 
 ## Upload paths
 
-Uploaded objects use this key format:
+Configure **Object key template** in the plugin settings. Placeholders are expanded with the upload time in **local time**: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}` (compact `YYYYMMDDHHmmss`), and `{filename}` (normalized like note images: lowercase, safe characters).
+
+The default template matches the original layout:
 
 ```text
-YYYY/MM/YYYYMMDDHHmmss-normalized-file-name.ext
+{year}/{month}/{timestamp}-{filename}
 ```
 
 For example, running the sync on April 26, 2026 at 14:30:22 for `My Screenshot 01.png` creates a key like (WebP body upload):
@@ -154,7 +156,10 @@ For example, running the sync on April 26, 2026 at 14:30:22 for `My Screenshot 0
 2026/04/20260426143022-my-screenshot-01.webp
 ```
 
-The `YYYYMMDDHHmmss` segment is the upload time in local time. File names are normalized to lowercase letters, numbers, hyphens, underscores, and dots.
+Releases that only had **Object key prefix** migrate once: `blog` becomes  
+`blog/{year}/{month}/{timestamp}-{filename}`.
+
+File names are normalized to lowercase letters, numbers, hyphens, underscores, and dots (see `{filename}` above).
 
 ## Skipped and failed files
 

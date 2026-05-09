@@ -1,8 +1,17 @@
 import type { R2CachePreset } from "./r2";
 
+/** Default layout matches the original yyyymm/dd/timestamp-filename pattern (local time). */
+export const DEFAULT_OBJECT_KEY_TEMPLATE =
+	"{year}/{month}/{timestamp}-{filename}";
+
 export interface PluginSettings {
 	accountId: string;
 	bucketName: string;
+	/**
+	 * Object key path pattern. Placeholders: {year}, {month}, {day}, {hour},
+	 * {minute}, {second}, {timestamp} (yyyymmddhhmmss, local), {filename} (sanitized).
+	 */
+	objectKeyTemplate: string;
 	publicBaseUrl: string;
 	accessKeyIdSecretName: string;
 	secretAccessKeySecretName: string;
@@ -17,6 +26,7 @@ export interface PluginSettings {
 export const DEFAULT_SETTINGS: PluginSettings = {
 	accountId: "",
 	bucketName: "",
+	objectKeyTemplate: DEFAULT_OBJECT_KEY_TEMPLATE,
 	publicBaseUrl: "",
 	accessKeyIdSecretName: "",
 	secretAccessKeySecretName: "",

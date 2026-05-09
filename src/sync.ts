@@ -15,6 +15,10 @@ import {
 	formatR2ErrorForNotice,
 	truncateForNotice,
 } from "./r2ErrorInsight";
+import {
+	DEFAULT_OBJECT_KEY_TEMPLATE,
+	type PluginSettings,
+} from "./settings";
 
 interface ImageReference {
 	fullMatch: string;
@@ -268,7 +272,11 @@ async function syncContent(
 			keyFileName = file.name;
 		}
 
-		const objectKey = buildObjectKey(keyFileName, uploadDate);
+		const objectKey = buildObjectKeyFromTemplate(
+			keyFileName,
+			uploadDate,
+			plugin.settings.objectKeyTemplate
+		);
 		const publicUrl = buildPublicUrl(plugin.settings.publicBaseUrl, objectKey);
 
 		try {
@@ -426,17 +434,98 @@ function getExtension(target: string): string {
 	return targetWithoutSubpath.slice(dotIndex + 1).toLowerCase();
 }
 
-export function buildObjectKey(fileName: string, date: Date): string {
+function normalizeTemplateSlashes(raw: string): string {
+	let normalized = raw.trim().replace(/\\/g, "/");
+	while (normalized.startsWith("/")) {
+		normalized = normalized.slice(1);
+	}
+	while (normalized.endsWith("/")) {
+		normalized = normalized.slice(0, -1);
+	}
+	return normalized.replace(/\/+/g, "/");
+}
+
+/**
+ * Migrates pre-template releases that only stored objectKeyPrefix.
+ */
+export function migrateLegacySettingsFromRaw(
+	raw: Record<string, unknown> | null
+): Partial<PluginSettings> {
+	if (
+		raw === null ||
+		Object.prototype.hasOwnProperty.call(raw, "objectKeyTemplate")
+	) {
+		return {};
+	}
+
+	if (typeof raw.objectKeyPrefix !== "string") {
+		return {};
+	}
+
+	const prefix = normalizeTemplateSlashes(raw.objectKeyPrefix);
+	if (prefix === "") {
+		return {};
+	}
+
+	return {
+		objectKeyTemplate: `${prefix}/{year}/{month}/{timestamp}-{filename}`,
+	};
+}
+
+export function buildObjectKeyFromTemplate(
+	fileName: string,
+	date: Date,
+	templateRaw: string
+): string {
+	const trimmedTemplate = normalizeTemplateSlashes(templateRaw);
+	const template =
+		trimmedTemplate === "" ? DEFAULT_OBJECT_KEY_TEMPLATE : trimmedTemplate;
+
 	const year = String(date.getFullYear());
 	const month = pad2(date.getMonth() + 1);
 	const day = pad2(date.getDate());
-	const hours = pad2(date.getHours());
-	const minutes = pad2(date.getMinutes());
-	const seconds = pad2(date.getSeconds());
-	const stamp = `${year}${month}${day}${hours}${minutes}${seconds}`;
-	const normalizedFileName = normalizeFileName(fileName);
+	const hour = pad2(date.getHours());
+	const minute = pad2(date.getMinutes());
+	const second = pad2(date.getSeconds());
+	const timestamp = `${year}${month}${day}${hour}${minute}${second}`;
+	const filename = normalizeFileName(fileName);
 
-	return `${year}/${month}/${stamp}-${normalizedFileName}`;
+	const vars: Record<string, string> = {
+		day,
+		filename,
+		hour,
+		minute,
+		month,
+		second,
+		timestamp,
+		year,
+	};
+
+	const replaced = template.replace(
+		/\{([a-z]+)\}/gi,
+		(full, token: string) => {
+			const key = token.toLowerCase();
+			return Object.prototype.hasOwnProperty.call(vars, key)
+				? vars[key]
+				: full;
+		}
+	);
+
+	let objectKey = normalizePath(replaced.replace(/\\/g, "/"));
+	while (objectKey.startsWith("/")) {
+		objectKey = objectKey.slice(1);
+	}
+	objectKey = objectKey.replace(/\/+/g, "/");
+
+	if (objectKey === "") {
+		return buildObjectKeyFromTemplate(
+			fileName,
+			date,
+			DEFAULT_OBJECT_KEY_TEMPLATE
+		);
+	}
+
+	return objectKey;
 }
 
 function normalizeFileName(fileName: string): string {

@@ -1,6 +1,7 @@
 import { Notice, Plugin } from "obsidian";
 import { registerCommands } from "./src/commands";
-import { PluginSettings, DEFAULT_SETTINGS } from "./src/settings";
+import { DEFAULT_SETTINGS, type PluginSettings } from "./src/settings";
+import { migrateLegacySettingsFromRaw } from "./src/sync";
 import { CloudflareR2SyncSettingTab } from "./src/ui/SettingsTab";
 
 /**
@@ -18,9 +19,14 @@ export default class CloudflareR2SyncPlugin extends Plugin {
 	}
 
 	async onload(): Promise<void> {
-		const loaded = (await this.loadData()) as Partial<PluginSettings> | null;
-		this.settings = { ...DEFAULT_SETTINGS, ...loaded };
+		const rawRecord = (await this.loadData()) as Record<string, unknown> | null;
+		const migrated = migrateLegacySettingsFromRaw(rawRecord);
+		const loaded = (
+			rawRecord ? { ...rawRecord } : {}
+		) as Partial<PluginSettings> & { objectKeyPrefix?: unknown };
+		delete loaded.objectKeyPrefix;
 
+		this.settings = { ...DEFAULT_SETTINGS, ...loaded, ...migrated };
 		this.addSettingTab(new CloudflareR2SyncSettingTab(this.app, this));
 		registerCommands(this);
 	}

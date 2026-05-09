@@ -2,7 +2,7 @@ import { MarkdownView, Notice } from "obsidian";
 import type CloudflareR2SyncPlugin from "../main";
 import { ObjectAlreadyExistsError } from "./r2";
 import {
-	buildObjectKey,
+	buildObjectKeyFromTemplate,
 	buildPublicUrl,
 	createR2Client,
 	getMissingSettings,
@@ -46,7 +46,11 @@ export async function uploadCoverImage(
 
 	const body = await picked.arrayBuffer();
 	const uploadDate = new Date();
-	const objectKey = buildObjectKey(picked.name, uploadDate);
+	const objectKey = buildObjectKeyFromTemplate(
+		picked.name,
+		uploadDate,
+		plugin.settings.objectKeyTemplate
+	);
 	const publicUrl = buildPublicUrl(plugin.settings.publicBaseUrl, objectKey);
 
 	try {
