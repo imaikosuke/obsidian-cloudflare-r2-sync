@@ -79,5 +79,23 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
+		new Setting(containerEl)
+			.setName("Image conversion")
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName("Webp quality (article images)")
+			.setDesc("Quality used when converting PNG, JPEG, or bmp references to webp (0 to 1). Cover uploads stay PNG.")
+			.addSlider((slider) =>
+				slider
+					.setLimits(0.5, 1, 0.05)
+					.setValue(this.plugin.settings.webpQuality)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.webpQuality = value;
+						await this.plugin.saveSettings();
+					})
+			);
 	}
 }
