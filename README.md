@@ -12,7 +12,7 @@ Cloudflare R2 Sync uploads local image files referenced from the active Markdown
 
 You can also **drop image files into the Markdown editor** so they upload to R2 and appear as `![](public URL)` at the drop position (see **Auto-upload on drop** in settings). If an upload fails, the image is saved as a normal vault attachment and linked locally instead.
 
-**Article body images:** `png`, `jpeg`, `jpg`, and `bmp` references are re-encoded to **WebP** before upload (quality is configurable in settings). Other supported rasters and `svg` are uploaded as-is.
+**Article body images:** For **Sync images to r2** and **Auto-upload on drop**, `png`, `jpeg`, `jpg`, and `bmp` are re-encoded to **WebP** before upload (quality is configurable in settings). Other recognized image extensions (`gif`, `ico`, `webp`, `svg`) are uploaded as-is.
 
 **Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to frontmatter `cover`. You can store cover objects under a different R2 path from article body images (see **Cover object key template** below).
 
@@ -204,6 +204,35 @@ File names are normalized to lowercase letters, numbers, hyphens, underscores, a
 - **Auto-upload on drop:** A duplicate key or other upload error triggers a **local fallback** (attachment + local link) instead of leaving the note empty; manual **Sync images to r2** still leaves the link unchanged when the object already exists, as above.
 
 Turn on **Detailed error notices** under **Error reporting** when you need clearer failure reasons (credentials, wrong bucket, timeouts, and so on). The summary line still shows counts such as `failed`; details appear in follow-up notices while the option is enabled.
+
+## Development
+
+### Build
+
+Requires [pnpm](https://pnpm.io). From the repository root:
+
+```bash
+pnpm install
+pnpm check    # TypeScript, ESLint, production bundle
+```
+
+`pnpm build` runs typecheck and esbuild; `pnpm dev` runs the esbuild watcher (see `esbuild.config.mjs`).
+
+### Source layout
+
+The TypeScript under `src/` is grouped by responsibility (plugin entry stays at `main.ts`):
+
+| Area | Files |
+| --- | --- |
+| R2 connection | `pluginR2.ts` (secrets and client from plugin settings), `r2.ts` (S3 client wrapper) |
+| URLs and keys | `publicR2Url.ts`, `objectKeyTemplate.ts` (templates, settings migration) |
+| Images | `imagePaths.ts`, `imageContentType.ts`, `convert.ts`, `droppedImageFiles.ts` |
+| Markdown / vault | `noteBodyImageRefs.ts` (local embeds for sync), `noteMarkdownR2PublicLinks.ts` (public URL embeds for delete) |
+| Features | `syncActiveNoteImages.ts`, `editorDropUpload.ts`, `cover.ts`, `deleteActiveNoteR2Images.ts` |
+| Errors | `r2ErrorInsight.ts` |
+| Settings | `settings.ts`, `ui/SettingsTab.ts` |
+| UI | `ui/R2ImageDeleteModal.ts`, `ui/coverPngPicker.ts` |
+| Commands | `commands/index.ts` |
 
 ## License
 
