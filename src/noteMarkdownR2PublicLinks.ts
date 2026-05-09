@@ -9,6 +9,86 @@ export interface MarkdownR2PublicImageRef {
 	url: string;
 }
 
+function stripYamlStringScalar(raw: string): string {
+	const t = raw.trim();
+	if (t.length >= 2 && t.startsWith('"') && t.endsWith('"')) {
+		return t.slice(1, -1);
+	}
+
+	if (t.length >= 2 && t.startsWith("'") && t.endsWith("'")) {
+		return t.slice(1, -1);
+	}
+
+	return t;
+}
+
+/**
+ * Leading YAML `---` block only; returns inner text start index in `content`.
+ */
+function matchLeadingYamlFrontmatter(
+	content: string
+): { inner: string; innerStart: number } | null {
+	const m = /^(\ufeff?---\s*\r?\n)([\s\S]*?)(\r?\n---\s*(?:\r?\n|$))/.exec(
+		content
+	);
+	if (m === null) {
+		return null;
+	}
+
+	return {
+		inner: m[2],
+		innerStart: m.index + m[1].length,
+	};
+}
+
+function collectFrontmatterCoverR2PublicRefs(
+	content: string,
+	publicBaseUrl: string
+): MarkdownR2PublicImageRef[] {
+	const fm = matchLeadingYamlFrontmatter(content);
+	if (fm === null) {
+		return [];
+	}
+
+	const { inner, innerStart } = fm;
+	const references: MarkdownR2PublicImageRef[] = [];
+	let i = 0;
+
+	while (i < inner.length) {
+		const lineEndRel = inner.indexOf("\n", i);
+		const hasNl = lineEndRel >= 0;
+		const line = (hasNl ? inner.slice(i, lineEndRel) : inner.slice(i))
+			.replace(/\r$/, "");
+		const lineAbsStart = innerStart + i;
+		const lineAbsEndExclusive = innerStart + (hasNl ? lineEndRel : inner.length);
+
+		const coverMatch = /^\s*cover\s*:\s*(.+)$/.exec(line);
+		if (coverMatch) {
+			const url = stripYamlStringScalar(coverMatch[1].trim());
+			const objectKey = getObjectKeyFromPublicUrl(publicBaseUrl, url);
+			if (objectKey !== null) {
+				const removeEnd = hasNl ? lineAbsEndExclusive + 1 : lineAbsEndExclusive;
+				const fullMatch = hasNl ? `${line}\n` : line;
+				references.push({
+					end: removeEnd,
+					fullMatch,
+					objectKey,
+					start: lineAbsStart,
+					url,
+				});
+			}
+		}
+
+		if (!hasNl) {
+			break;
+		}
+
+		i = lineEndRel + 1;
+	}
+
+	return references;
+}
+
 export function collectMarkdownR2PublicImageRefs(
 	content: string,
 	publicBaseUrl: string
@@ -33,6 +113,8 @@ export function collectMarkdownR2PublicImageRefs(
 
 		match = markdownImagePattern.exec(content);
 	}
+
+	references.push(...collectFrontmatterCoverR2PublicRefs(content, publicBaseUrl));
 
 	return references;
 }

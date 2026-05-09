@@ -14,7 +14,7 @@ You can also **drop image files into the Markdown editor** so they upload to R2 
 
 **Article body images:** For **Sync images to r2** and **Auto-upload on drop**, `png`, `jpeg`, `jpg`, and `bmp` are re-encoded to **WebP** before upload (quality is configurable in settings). Other recognized image extensions (`gif`, `ico`, `webp`, `svg`) are uploaded as-is.
 
-**Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to frontmatter `cover`. You can store cover objects under a different R2 path from article body images (see **Cover object key template** below).
+**Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to frontmatter `cover`. You can store cover objects under a different R2 path from article body images (see **Cover object key template** below). **Delete r2 images** also treats that URL as a candidate object (see **Delete uploaded images** below).
 
 Supported image references:
 
@@ -148,12 +148,17 @@ When the same local image is referenced multiple times in one note, it is upload
 
 ### Delete uploaded images
 
-1. Open the Markdown note that contains R2 image links created by this plugin.
+1. Open the Markdown note that contains R2 image links created by this plugin (and/or a frontmatter cover URL pointing at R2).
 2. Run `Delete r2 images` from the command palette.
 3. Preview the detected images, select the images to delete, then click `Delete selected`.
 4. Wait for the result notice.
 
-Only Markdown image links under the configured `Public base URL` are listed. Successfully deleted R2 objects have their image links removed from the active note. If deleting an object fails, that link is left unchanged.
+The plugin lists every reference whose URL starts with the configured **Public base URL**:
+
+- Markdown image links: `![](https://…)` (and angle-bracket targets).
+- YAML **frontmatter** in the leading `---` block: a single-line `cover:` whose value is that public URL (plain, double-quoted, or single-quoted).
+
+Successfully deleted objects are removed from the note: Markdown links are stripped, and a deleted cover removes the entire `cover:` line from frontmatter. If deleting an object in R2 fails, the corresponding note text is left unchanged.
 
 ## Upload paths
 
@@ -227,7 +232,7 @@ The TypeScript under `src/` is grouped by responsibility (plugin entry stays at 
 | R2 connection | `pluginR2.ts` (secrets and client from plugin settings), `r2.ts` (S3 client wrapper) |
 | URLs and keys | `publicR2Url.ts`, `objectKeyTemplate.ts` (templates, settings migration) |
 | Images | `imagePaths.ts`, `imageContentType.ts`, `convert.ts`, `droppedImageFiles.ts` |
-| Markdown / vault | `noteBodyImageRefs.ts` (local embeds for sync), `noteMarkdownR2PublicLinks.ts` (public URL embeds for delete) |
+| Markdown / vault | `noteBodyImageRefs.ts` (local embeds for sync), `noteMarkdownR2PublicLinks.ts` (public URL embeds and frontmatter `cover` for delete) |
 | Features | `syncActiveNoteImages.ts`, `editorDropUpload.ts`, `cover.ts`, `deleteActiveNoteR2Images.ts` |
 | Errors | `r2ErrorInsight.ts` |
 | Settings | `settings.ts`, `ui/SettingsTab.ts` |
