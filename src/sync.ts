@@ -11,6 +11,10 @@ import {
 	ObjectAlreadyExistsError,
 	R2ImageClient,
 } from "./r2";
+import {
+	formatR2ErrorForNotice,
+	truncateForNotice,
+} from "./r2ErrorInsight";
 
 interface ImageReference {
 	fullMatch: string;
@@ -44,6 +48,8 @@ interface SyncResult {
 	/** Local images to move to trash after the note text is updated. */
 	filesToTrash: TFile[];
 	nextContent: string;
+	/** Unique truncated lines for optional detail notices. */
+	failureDetailLines: string[];
 }
 
 const SUPPORTED_IMAGE_EXTENSIONS = new Set([
@@ -96,6 +102,10 @@ export async function syncActiveNoteImages(
 	}
 
 	new Notice(formatResultNotice(counts));
+
+	for (const line of result.failureDetailLines) {
+		new Notice(line, 12_000);
+	}
 
 	for (const { filePath, objectKey } of result.alreadyExistingImages) {
 		new Notice(
@@ -171,6 +181,27 @@ async function syncContent(
 	activeFile: TFile | null,
 	content: string
 ): Promise<SyncResult> {
+	const failureDetailLines: string[] = [];
+	const seenDetailLines = new Set<string>();
+
+	const maybeFailureDetail = (rawLine: string): void => {
+		if (!plugin.settings.notifyDetailedErrors) {
+			return;
+		}
+
+		if (failureDetailLines.length >= 6) {
+			return;
+		}
+
+		const line = truncateForNotice(rawLine);
+		if (seenDetailLines.has(line)) {
+			return;
+		}
+
+		seenDetailLines.add(line);
+		failureDetailLines.push(line);
+	};
+
 	const alreadyExistingImages: AlreadyExistingImage[] = [];
 	const filesToTrash: TFile[] = [];
 	const counts: SyncCounts = {
@@ -187,6 +218,7 @@ async function syncContent(
 		return {
 			alreadyExistingImages,
 			counts: { ...counts, skipped: 1 },
+			failureDetailLines,
 			filesToTrash: [],
 			nextContent,
 		};
@@ -222,6 +254,9 @@ async function syncContent(
 				body = await convertToWebp(rawBody, plugin.settings.webpQuality);
 			} catch {
 				counts.failed += groupedReferences.length;
+				maybeFailureDetail(
+					"Image sync: local read or WebP conversion failed."
+				);
 				continue;
 			}
 
@@ -258,11 +293,21 @@ async function syncContent(
 					filePath: file.path,
 					objectKey,
 				});
+			} else {
+				maybeFailureDetail(
+					`Image sync: ${formatR2ErrorForNotice(error)}`
+				);
 			}
 		}
 	}
 
-	return { alreadyExistingImages, counts, filesToTrash, nextContent };
+	return {
+		alreadyExistingImages,
+		counts,
+		failureDetailLines,
+		filesToTrash,
+		nextContent,
+	};
 }
 
 function formatResultNotice(counts: SyncCounts): string {

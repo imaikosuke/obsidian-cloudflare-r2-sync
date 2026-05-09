@@ -103,6 +103,10 @@ Image conversion:
 
 - `Webp quality (article images)`: Slider from 0.5 to 1. Used only when converting `png` / `jpeg` / `jpg` / `bmp` body references to WebP.
 
+Error reporting:
+
+- `Detailed error notices` (off by default): When an R2 request or local read / WebP conversion fails, show extra notices with a short category (for example credential / signature, bucket or 404, permission / 403, timeout, network), optional HTTP status or error code, and a brief hint. Useful for screenshots when asking for support. **Image sync** shows up to six unique detail lines after the summary notice; **Delete r2 images** and **Upload cover image** append detail to the failure notice when enabled.
+
 ## Usage
 
 ### Upload images
@@ -160,6 +164,8 @@ The `YYYYMMDDHHmmss` segment is the upload time in local time. File names are no
 - If WebP conversion fails for a note image, that reference fails and its link is left unchanged.
 - If an object with the same key already exists in R2, that image fails, an additional notice shows the existing object key, and its link is left unchanged.
 - If an upload fails, only that image is left unchanged.
+
+Turn on **Detailed error notices** under **Error reporting** when you need clearer failure reasons (credentials, wrong bucket, timeouts, and so on). The summary line still shows counts such as `failed`; details appear in follow-up notices while the option is enabled.
 
 ## License
 

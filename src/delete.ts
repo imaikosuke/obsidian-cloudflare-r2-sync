@@ -9,6 +9,10 @@ import {
 	getMissingSettings,
 	getObjectKeyFromPublicUrl,
 } from "./sync";
+import {
+	formatR2ErrorForNotice,
+	truncateForNotice,
+} from "./r2ErrorInsight";
 
 interface R2ImageReference {
 	end: number;
@@ -82,9 +86,13 @@ export async function deleteActiveNoteR2Images(
 			});
 			deletedObjectKeys.add(objectKey);
 			counts.deleted += 1;
-		} catch {
+		} catch (error) {
 			counts.failed += 1;
-			new Notice(`Image delete: failed: ${objectKey}`);
+			const base = `Image delete: failed: ${objectKey}`;
+			const message = plugin.settings.notifyDetailedErrors
+				? truncateForNotice(`${base}. ${formatR2ErrorForNotice(error)}`, 520)
+				: base;
+			new Notice(message, plugin.settings.notifyDetailedErrors ? 12_000 : undefined);
 		}
 	}
 

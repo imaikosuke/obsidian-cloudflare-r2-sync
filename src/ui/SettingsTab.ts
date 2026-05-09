@@ -110,6 +110,24 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Error reporting")
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName("Detailed error notices")
+			.setDesc(
+				"When r2 requests fail, show category, HTTP status, and short hints in notices (useful screenshots for support)."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.notifyDetailedErrors)
+					.onChange(async (value) => {
+						this.plugin.settings.notifyDetailedErrors = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("Image conversion")
 			.setHeading();
 

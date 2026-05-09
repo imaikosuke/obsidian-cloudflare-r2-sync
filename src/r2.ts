@@ -77,7 +77,7 @@ export class R2ImageClient {
 				})
 			);
 		} catch (error) {
-			if (getHttpStatusCode(error) === 412) {
+			if (readAwsSdkRequestHttpStatus(error) === 412) {
 				throw new ObjectAlreadyExistsError(options.key);
 			}
 			throw error;
@@ -94,7 +94,8 @@ export class R2ImageClient {
 	}
 }
 
-function getHttpStatusCode(error: unknown): number | undefined {
+/** HTTP status from AWS SDK v3 errors (S3 / r2), when present. */
+export function readAwsSdkRequestHttpStatus(error: unknown): number | undefined {
 	if (typeof error !== "object" || error === null || !("$metadata" in error)) {
 		return undefined;
 	}

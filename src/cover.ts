@@ -7,6 +7,10 @@ import {
 	createR2Client,
 	getMissingSettings,
 } from "./sync";
+import {
+	formatR2ErrorForNotice,
+	truncateForNotice,
+} from "./r2ErrorInsight";
 
 export async function uploadCoverImage(
 	plugin: CloudflareR2SyncPlugin
@@ -55,6 +59,17 @@ export async function uploadCoverImage(
 	} catch (error) {
 		if (error instanceof ObjectAlreadyExistsError) {
 			new Notice(`Cover upload: object already exists (${objectKey}).`);
+			return;
+		}
+
+		if (plugin.settings.notifyDetailedErrors) {
+			new Notice(
+				truncateForNotice(
+					`Cover upload: ${formatR2ErrorForNotice(error)}`,
+					520
+				),
+				12_000
+			);
 			return;
 		}
 
