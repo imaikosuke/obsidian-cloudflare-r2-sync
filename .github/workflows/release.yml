@@ -48,7 +48,7 @@ jobs:
           test -f styles.css
 
       - name: Create ZIP artifact
-        run: zip plugin.zip main.js manifest.json styles.css
+        run: zip cloudflare-r2-sync.zip main.js manifest.json styles.css
 
       - name: Create release
         env:
@@ -59,10 +59,10 @@ jobs:
           tag="${GITHUB_REF#refs/tags/}"
 
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" main.js manifest.json styles.css plugin.zip --clobber
+            gh release upload "$tag" main.js manifest.json styles.css cloudflare-r2-sync.zip --clobber
           else
             gh release create "$tag" \
               --title="$tag" \
               --draft \
-              main.js manifest.json styles.css plugin.zip
+              main.js manifest.json styles.css cloudflare-r2-sync.zip
           fi
