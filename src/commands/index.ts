@@ -1,4 +1,5 @@
 import type CloudflareR2SyncPlugin from "../../main";
+import { uploadCoverImage } from "../cover";
 import { deleteActiveNoteR2Images } from "../delete";
 import { syncActiveNoteImages } from "../sync";
 
@@ -20,6 +21,14 @@ export function registerCommands(plugin: CloudflareR2SyncPlugin): void {
 		name: "Delete r2 images",
 		callback: () => {
 			void deleteActiveNoteR2Images(plugin);
+		},
+	});
+
+	plugin.addCommand({
+		id: "upload-cover-image",
+		name: "Upload cover image",
+		callback: () => {
+			void uploadCoverImage(plugin);
 		},
 	});
 }

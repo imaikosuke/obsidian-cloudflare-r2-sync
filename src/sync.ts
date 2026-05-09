@@ -1,5 +1,10 @@
 import { MarkdownView, Notice, normalizePath, TFile } from "obsidian";
 import type CloudflareR2SyncPlugin from "../main";
+import {
+	convertToWebp,
+	shouldConvertToWebp,
+	withWebpFileName,
+} from "./convert";
 import { ObjectAlreadyExistsError, R2ImageClient } from "./r2";
 
 interface ImageReference {
@@ -197,14 +202,37 @@ async function syncContent(
 
 	for (const groupedReferences of resolvedReferences.values()) {
 		const { file } = groupedReferences[0];
-		const objectKey = buildObjectKey(file.name, new Date());
+		const uploadDate = new Date();
+
+		let body: ArrayBuffer;
+		let contentType: string;
+		let keyFileName: string;
+
+		if (shouldConvertToWebp(file.extension)) {
+			try {
+				const rawBody = await plugin.app.vault.readBinary(file);
+				body = await convertToWebp(rawBody, plugin.settings.webpQuality);
+			} catch {
+				counts.failed += groupedReferences.length;
+				continue;
+			}
+
+			contentType = "image/webp";
+			keyFileName = withWebpFileName(file.name);
+		} else {
+			body = await plugin.app.vault.readBinary(file);
+			contentType = getImageContentType(file.extension);
+			keyFileName = file.name;
+		}
+
+		const objectKey = buildObjectKey(keyFileName, uploadDate);
 		const publicUrl = buildPublicUrl(plugin.settings.publicBaseUrl, objectKey);
 
 		try {
 			await r2Client.uploadIfAbsent({
-				body: await plugin.app.vault.readBinary(file),
+				body,
 				bucketName: plugin.settings.bucketName.trim(),
-				contentType: getImageContentType(file.extension),
+				contentType,
 				key: objectKey,
 			});
 			counts.uploaded += 1;
@@ -345,13 +373,17 @@ function getExtension(target: string): string {
 	return targetWithoutSubpath.slice(dotIndex + 1).toLowerCase();
 }
 
-function buildObjectKey(fileName: string, date: Date): string {
+export function buildObjectKey(fileName: string, date: Date): string {
 	const year = String(date.getFullYear());
 	const month = pad2(date.getMonth() + 1);
 	const day = pad2(date.getDate());
+	const hours = pad2(date.getHours());
+	const minutes = pad2(date.getMinutes());
+	const seconds = pad2(date.getSeconds());
+	const stamp = `${year}${month}${day}${hours}${minutes}${seconds}`;
 	const normalizedFileName = normalizeFileName(fileName);
 
-	return `${year}/${month}/${year}${month}${day}-${normalizedFileName}`;
+	return `${year}/${month}/${stamp}-${normalizedFileName}`;
 }
 
 function normalizeFileName(fileName: string): string {
