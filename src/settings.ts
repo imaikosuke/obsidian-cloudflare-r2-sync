@@ -9,7 +9,8 @@ export interface PluginSettings {
 	bucketName: string;
 	/**
 	 * Object key path pattern. Placeholders: {year}, {month}, {day}, {hour},
-	 * {minute}, {second}, {timestamp} (yyyymmddhhmmss, local), {filename} (sanitized).
+	 * {minute}, {second}, {timestamp} (yyyymmddhhmmss, local), {filename} (sanitized),
+	 * {slug}, {notepath}, {hash}, {uuid}.
 	 */
 	objectKeyTemplate: string;
 	/**

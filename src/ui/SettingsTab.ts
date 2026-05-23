@@ -6,12 +6,52 @@ import {
 	buildObjectKeyFromTemplate,
 	isCoverObjectKeyTemplateInherited,
 	resolveCoverObjectKeyTemplate,
+	type ObjectKeyTemplateContext,
 } from "../objectKeyTemplate";
 import { buildPublicUrl } from "../publicR2Url";
 
 /** Fixed date for the template example line (15 Apr 2026, 14:30:22 local). */
 const OBJECT_KEY_EXAMPLE_DATE = new Date(2026, 3, 15, 14, 30, 22);
 const OBJECT_KEY_EXAMPLE_FILENAME = "example.png";
+const OBJECT_KEY_EXAMPLE_CONTEXT: ObjectKeyTemplateContext = {
+	hash: "a1b2c3d4e5f6",
+	notePath: "blog/example-note",
+	slug: "example-note",
+	uuid: "550e8400e29b41d4a716446655440000",
+};
+
+interface ObjectKeyPlaceholderGroup {
+	label: string;
+	placeholders: string;
+}
+
+const OBJECT_KEY_PLACEHOLDER_GROUPS: ObjectKeyPlaceholderGroup[] = [
+	{
+		label: "Date and time",
+		placeholders:
+			"{year}, {month}, {day}, {hour}, {minute}, {second}, {timestamp}",
+	},
+	{ label: "File", placeholders: "{filename}" },
+	{ label: "Note", placeholders: "{slug}, {notepath}" },
+	{ label: "Upload", placeholders: "{hash}, {uuid}" },
+];
+
+function appendObjectKeyTemplatePlaceholderHelp(descEl: HTMLElement): void {
+	const listEl = descEl.createDiv({
+		cls: "cloudflare-r2-sync-template-placeholders",
+	});
+
+	for (const { label, placeholders } of OBJECT_KEY_PLACEHOLDER_GROUPS) {
+		const row = listEl.createDiv({
+			cls: "cloudflare-r2-sync-template-placeholder-row",
+		});
+		row.createSpan({
+			cls: "cloudflare-r2-sync-template-placeholder-label",
+			text: `${label}: `,
+		});
+		row.createSpan({ text: placeholders });
+	}
+}
 
 const R2_CACHE_PRESET_DROPDOWN: { preset: R2CachePreset; label: string }[] = [
 	{ preset: "yearImmutable", label: "1 year, immutable" },
@@ -83,24 +123,26 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 
 		const objectKeySetting = new Setting(containerEl)
 			.setName("Object key template")
-			.setDesc(
-				"Path relative to the bucket for article body images. Use placeholders {year}, {month}, {day}, {hour}, {minute}, {second}, {timestamp} (compact local upload time), and {filename} (sanitized)."
-			);
+			.setDesc("R2 object path for article body images.");
+
+		appendObjectKeyTemplatePlaceholderHelp(objectKeySetting.descEl);
 
 		const objectKeyExampleLine = objectKeySetting.descEl.createDiv({
 			cls: "setting-item-description",
 		});
 
 		refreshObjectKeyExample = (): void => {
-			const samplePath = buildObjectKeyFromTemplate(
+			void buildObjectKeyFromTemplate(
 				OBJECT_KEY_EXAMPLE_FILENAME,
 				OBJECT_KEY_EXAMPLE_DATE,
-				String(this.plugin.settings.objectKeyTemplate ?? "")
-			);
-			const baseUrl = this.plugin.settings.publicBaseUrl.trim();
-			const exampleTarget =
-				baseUrl === "" ? samplePath : buildPublicUrl(baseUrl, samplePath);
-			objectKeyExampleLine.setText(`Example: ${exampleTarget}`);
+				String(this.plugin.settings.objectKeyTemplate ?? ""),
+				OBJECT_KEY_EXAMPLE_CONTEXT
+			).then((samplePath) => {
+				const baseUrl = this.plugin.settings.publicBaseUrl.trim();
+				const exampleTarget =
+					baseUrl === "" ? samplePath : buildPublicUrl(baseUrl, samplePath);
+				objectKeyExampleLine.setText(`Example: ${exampleTarget}`);
+			});
 		};
 
 		objectKeySetting.addText((text) => {
@@ -122,7 +164,7 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 		const coverObjectKeySetting = new Setting(containerEl)
 			.setName("Cover object key template")
 			.setDesc(
-				"Optional path template for cover uploads only. Same placeholders as object key template. Leave empty to reuse the article template."
+				"Optional path for cover uploads. Uses the same placeholders as object key template. Leave empty to reuse the article template."
 			);
 
 		const coverObjectKeyExampleLine = coverObjectKeySetting.descEl.createDiv({
@@ -130,18 +172,20 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 		});
 
 		refreshCoverObjectKeyExample = (): void => {
-			const samplePath = buildObjectKeyFromTemplate(
+			void buildObjectKeyFromTemplate(
 				OBJECT_KEY_EXAMPLE_FILENAME,
 				OBJECT_KEY_EXAMPLE_DATE,
-				resolveCoverObjectKeyTemplate(this.plugin.settings)
-			);
-			const baseUrl = this.plugin.settings.publicBaseUrl.trim();
-			const exampleTarget =
-				baseUrl === "" ? samplePath : buildPublicUrl(baseUrl, samplePath);
-			const suffix = isCoverObjectKeyTemplateInherited(this.plugin.settings)
-				? " (same as article template)"
-				: "";
-			coverObjectKeyExampleLine.setText(`Example: ${exampleTarget}${suffix}`);
+				resolveCoverObjectKeyTemplate(this.plugin.settings),
+				OBJECT_KEY_EXAMPLE_CONTEXT
+			).then((samplePath) => {
+				const baseUrl = this.plugin.settings.publicBaseUrl.trim();
+				const exampleTarget =
+					baseUrl === "" ? samplePath : buildPublicUrl(baseUrl, samplePath);
+				const suffix = isCoverObjectKeyTemplateInherited(this.plugin.settings)
+					? " (same as article template)"
+					: "";
+				coverObjectKeyExampleLine.setText(`Example: ${exampleTarget}${suffix}`);
+			});
 		};
 
 		coverObjectKeySetting.addText((text) => {

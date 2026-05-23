@@ -12,7 +12,10 @@ import {
 	replaceNoteBodyImageRefsWithUrl,
 	resolveNoteImageLinkToFile,
 } from "./noteBodyImageRefs";
-import { buildObjectKeyFromTemplate } from "./objectKeyTemplate";
+import {
+	buildObjectKeyFromTemplate,
+	resolveObjectKeyTemplateContext,
+} from "./objectKeyTemplate";
 import { createR2Client, getMissingSettings } from "./pluginR2";
 import { buildPublicUrl } from "./publicR2Url";
 import {
@@ -202,10 +205,17 @@ async function syncContent(
 			keyFileName = file.name;
 		}
 
-		const objectKey = buildObjectKeyFromTemplate(
+		const template = plugin.settings.objectKeyTemplate;
+		const context = await resolveObjectKeyTemplateContext(
+			activeFile,
+			body,
+			template
+		);
+		const objectKey = await buildObjectKeyFromTemplate(
 			keyFileName,
 			uploadDate,
-			plugin.settings.objectKeyTemplate
+			template,
+			context
 		);
 		const publicUrl = buildPublicUrl(plugin.settings.publicBaseUrl, objectKey);
 

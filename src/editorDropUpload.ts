@@ -13,7 +13,10 @@ import {
 	extensionFromMime,
 } from "./droppedImageFiles";
 import { getImageContentType } from "./imageContentType";
-import { buildObjectKeyFromTemplate } from "./objectKeyTemplate";
+import {
+	buildObjectKeyFromTemplate,
+	resolveObjectKeyTemplateContext,
+} from "./objectKeyTemplate";
 import { createR2Client, getMissingSettings } from "./pluginR2";
 import { buildPublicUrl } from "./publicR2Url";
 import type { R2ImageClient } from "./r2";
@@ -79,6 +82,18 @@ async function saveLocalAttachmentAsMarkdown(
 	return link.startsWith("!") ? link : `!${link}`;
 }
 
+function resolveSourceNoteFile(
+	plugin: CloudflareR2SyncPlugin,
+	sourcePath: string
+): TFile | null {
+	if (sourcePath === "") {
+		return null;
+	}
+
+	const abstract = plugin.app.vault.getAbstractFileByPath(sourcePath);
+	return abstract instanceof TFile ? abstract : null;
+}
+
 async function uploadOneDroppedFileToR2(
 	plugin: CloudflareR2SyncPlugin,
 	r2Client: R2ImageClient,
@@ -121,10 +136,17 @@ async function uploadOneDroppedFileToR2(
 		keyFileName = displayName;
 	}
 
-	const objectKey = buildObjectKeyFromTemplate(
+	const template = plugin.settings.objectKeyTemplate;
+	const context = await resolveObjectKeyTemplateContext(
+		resolveSourceNoteFile(plugin, sourcePath),
+		body,
+		template
+	);
+	const objectKey = await buildObjectKeyFromTemplate(
 		keyFileName,
 		uploadDate,
-		plugin.settings.objectKeyTemplate
+		template,
+		context
 	);
 	const publicUrl = buildPublicUrl(plugin.settings.publicBaseUrl, objectKey);
 

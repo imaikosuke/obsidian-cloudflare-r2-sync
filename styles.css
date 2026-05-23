@@ -3,6 +3,23 @@
 	display: none;
 }
 
+.cloudflare-r2-sync-template-placeholders {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	margin-top: var(--size-2-2);
+}
+
+.cloudflare-r2-sync-template-placeholder-row {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	overflow-wrap: anywhere;
+}
+
+.cloudflare-r2-sync-template-placeholder-label {
+	color: var(--text-normal);
+}
+
 .cloudflare-r2-sync-delete-description {
 	color: var(--text-muted);
 	margin-bottom: var(--size-4-4);

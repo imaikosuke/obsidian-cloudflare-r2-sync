@@ -11,6 +11,7 @@ import { ObjectAlreadyExistsError } from "./r2";
 import {
 	buildObjectKeyFromTemplate,
 	resolveCoverObjectKeyTemplate,
+	resolveObjectKeyTemplateContext,
 } from "./objectKeyTemplate";
 import { createR2Client, getMissingSettings } from "./pluginR2";
 import { resolveCoverFrontmatterProperty } from "./settings";
@@ -91,10 +92,17 @@ export async function uploadCoverImage(
 	}
 
 	const uploadDate = new Date();
-	const objectKey = buildObjectKeyFromTemplate(
+	const template = resolveCoverObjectKeyTemplate(plugin.settings);
+	const context = await resolveObjectKeyTemplateContext(
+		view.file,
+		body,
+		template
+	);
+	const objectKey = await buildObjectKeyFromTemplate(
 		keyFileName,
 		uploadDate,
-		resolveCoverObjectKeyTemplate(plugin.settings)
+		template,
+		context
 	);
 	const publicUrl = buildPublicUrl(plugin.settings.publicBaseUrl, objectKey);
 

@@ -98,7 +98,7 @@ Connection, upload paths, and secrets:
 - `Account ID`: Your Cloudflare account ID.
 - `Bucket name`: The R2 bucket to upload images to.
 - `Public base URL`: The URL prefix used in the replaced Markdown links, for example `https://images.example.com`.
-- `Object key template`: Path pattern for **article body images** synced with **Sync images to r2** or **Auto-upload on drop** (placeholders: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}`, `{filename}`).
+- `Object key template`: Path pattern for **article body images** synced with **Sync images to r2** or **Auto-upload on drop** (placeholders: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}`, `{filename}`, `{slug}`, `{notepath}`, `{hash}`, `{uuid}`).
 - `Cover object key template`: Optional path pattern used only for **Upload cover image**. Same placeholders as above. Leave empty to reuse `Object key template`.
 - `Cover frontmatter property`: YAML key where **Upload cover image** writes the public URL, and where **Delete r2 images** looks for a matching cover URL. Leave empty to use `cover`.
 - `Upload cache control`: `Cache-Control` applied to each successful upload.
@@ -172,6 +172,15 @@ Article body images and cover images both use the same placeholder rules, but yo
 
 Used when you run **Sync images to r2**, and when **Auto-upload on drop** handles drops into the editor. Placeholders are expanded with the upload time in **local time**: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}` (compact `YYYYMMDDHHmmss`), and `{filename}` (normalized: lowercase, safe characters).
 
+Note and upload placeholders use the **active Markdown note** when available:
+
+- `{slug}`: Note file name without extension, normalized (for example `my-post` from `My Post.md`).
+- `{notepath}`: Vault-relative note path without extension, each folder segment normalized (for example `blog/my-post` from `blog/My Post.md`).
+- `{hash}`: First 12 hex characters of the SHA-256 hash of the uploaded bytes (computed only when the template includes `{hash}`).
+- `{uuid}`: A new UUID v4 without hyphens per upload (generated only when the template includes `{uuid}`).
+
+When the note cannot be resolved (for example a drop onto an unsaved note), `{slug}` and `{notepath}` fall back to `untitled`.
+
 The default template matches the original layout:
 
 ```text
@@ -185,6 +194,12 @@ For example, running the sync on April 26, 2026 at 14:30:22 for `My Screenshot 0
 ```
 
 With **Convert article images to webp** off, the same sync would use the original extension (for example `.png`) in `{filename}`.
+
+Example with note `blog/My Post.md` and template `{slug}/{filename}`:
+
+```text
+my-post/20260426143022-my-screenshot-01.webp
+```
 
 ### Cover images (`Cover object key template`)
 
@@ -210,7 +225,7 @@ Front slash at the start of a template is optional; leading slashes are normaliz
 Releases that only had **Object key prefix** migrate once: `blog` becomes  
 `blog/{year}/{month}/{timestamp}-{filename}`.
 
-File names are normalized to lowercase letters, numbers, hyphens, underscores, and dots (see `{filename}` above).
+File names and note segments are normalized to lowercase letters, numbers, hyphens, underscores, and dots (see `{filename}` and `{notepath}` above).
 
 ## Skipped and failed files
 
