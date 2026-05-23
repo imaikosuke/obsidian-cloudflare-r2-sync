@@ -108,6 +108,7 @@ Connection, upload paths, and secrets:
 Automation:
 
 - `Auto-upload on drop` (on by default): When you drag image files into the Markdown editor, the plugin intercepts the drop, uploads using the same rules as **Sync images to r2** (including optional WebP conversion for body images per **Convert article images to webp**, and the **Object key template**), and inserts markdown at the drop position. Turn this off if you only want manual sync. If R2 credentials or other required settings are missing, Obsidian’s normal attachment behavior runs instead.
+- `Sync preview before upload` (off by default): When enabled, **Auto-upload on drop**, **Sync images to r2**, and **Upload cover image** open a preview modal first so you can review upload targets, object keys, and public URLs, then upload only the images you select.
 
 Image conversion:
 
@@ -126,13 +127,15 @@ Error reporting:
 
 1. Open a Markdown note and focus the editor.
 2. Drag one or more supported images from your file manager onto the note. With **Auto-upload on drop** enabled and R2 configured, they upload and `![](…)` links are inserted where you dropped them.
-3. If upload fails (network, duplicate object key, and so on), the file is saved under your attachment settings and a local embed is inserted. With **Detailed error notices** on, you may see an extra notice with failure details.
+3. With **Sync preview before upload** enabled, a preview modal opens first so you can review object keys and public URLs and choose which dropped images to upload.
+4. If upload fails (network, duplicate object key, and so on), the file is saved under your attachment settings and a local embed is inserted. With **Detailed error notices** on, you may see an extra notice with failure details.
 
 ### Upload images
 
 1. Open the Markdown note that contains local image references.
 2. Run `Sync images to r2` from the command palette, or click the ribbon icon.
-3. Wait for the result notice.
+3. With **Sync preview before upload** enabled, review the detected local images in the preview modal, select the images to upload, then click `Upload selected`.
+4. Wait for the result notice.
 
 Example result:
 
@@ -148,7 +151,8 @@ When the same local image is referenced multiple times in one note, it is upload
 
 1. Open the Markdown note whose YAML frontmatter should receive the cover URL (by default a line `cover:`, or whatever you set under **Cover frontmatter property**).
 2. Run **Upload cover image** from the command palette.
-3. Choose a supported image file. The plugin uploads it to R2 using **Cover object key template** (or **Object key template** when the cover template is empty), optionally converting raster formats to WebP per **Convert cover images to webp**, then sets that property in the active file’s frontmatter to the public URL.
+3. Choose a supported image file. With **Sync preview before upload** enabled, review the cover image in the preview modal, then click `Upload selected`.
+4. The plugin uploads it to R2 using **Cover object key template** (or **Object key template** when the cover template is empty), optionally converting raster formats to WebP per **Convert cover images to webp**, then sets that property in the active file’s frontmatter to the public URL.
 
 ### Delete uploaded images
 

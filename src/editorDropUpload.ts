@@ -24,10 +24,21 @@ import {
 	formatR2ErrorForNotice,
 	truncateForNotice,
 } from "./r2ErrorInsight";
+import {
+	openR2ImageSyncPreviewModal,
+	type R2ImageSyncPreviewCandidate,
+} from "./ui/R2ImageSyncPreviewModal";
 
 export interface EditorDropUploadPlan {
 	imageFiles: File[];
 	r2Client: R2ImageClient;
+}
+
+interface PreparedDropUploadItem extends R2ImageSyncPreviewCandidate {
+	body: ArrayBuffer;
+	contentType: string;
+	file: File;
+	keyFileName: string;
 }
 
 interface MinimalCodeMirrorView {
@@ -94,12 +105,13 @@ function resolveSourceNoteFile(
 	return abstract instanceof TFile ? abstract : null;
 }
 
-async function uploadOneDroppedFileToR2(
+async function prepareOneDropUploadItem(
 	plugin: CloudflareR2SyncPlugin,
-	r2Client: R2ImageClient,
 	file: File,
-	sourcePath: string
-): Promise<string> {
+	sourcePath: string,
+	index: number,
+	createPreviewUrl: boolean
+): Promise<PreparedDropUploadItem | null> {
 	const displayName = effectiveDroppedImageFileName(file);
 	const ext = extensionFromFile(file);
 	let body: ArrayBuffer;
@@ -116,13 +128,7 @@ async function uploadOneDroppedFileToR2(
 			const rawBody = await file.arrayBuffer();
 			body = await convertToWebp(rawBody, plugin.settings.webpQuality);
 		} catch {
-			const rawBody = await file.arrayBuffer();
-			return saveLocalAttachmentAsMarkdown(
-				plugin,
-				rawBody,
-				displayName,
-				sourcePath
-			);
+			return null;
 		}
 		contentType = "image/webp";
 		keyFileName = withWebpFileName(displayName);
@@ -150,14 +156,57 @@ async function uploadOneDroppedFileToR2(
 	);
 	const publicUrl = buildPublicUrl(plugin.settings.publicBaseUrl, objectKey);
 
+	return {
+		id: `drop-${index}-${displayName}`,
+		sourceLabel: displayName,
+		previewUrl: createPreviewUrl ? URL.createObjectURL(file) : "",
+		objectKey,
+		publicUrl,
+		body,
+		contentType,
+		file,
+		keyFileName,
+	};
+}
+
+async function prepareDropUploadItems(
+	plugin: CloudflareR2SyncPlugin,
+	imageFiles: File[],
+	sourcePath: string,
+	createPreviewUrl: boolean
+): Promise<PreparedDropUploadItem[]> {
+	const items: PreparedDropUploadItem[] = [];
+
+	for (let index = 0; index < imageFiles.length; index += 1) {
+		const item = await prepareOneDropUploadItem(
+			plugin,
+			imageFiles[index],
+			sourcePath,
+			index,
+			createPreviewUrl
+		);
+		if (item !== null) {
+			items.push(item);
+		}
+	}
+
+	return items;
+}
+
+async function uploadPreparedDropItemToR2(
+	plugin: CloudflareR2SyncPlugin,
+	r2Client: R2ImageClient,
+	item: PreparedDropUploadItem,
+	sourcePath: string
+): Promise<string> {
 	try {
 		await r2Client.uploadIfAbsent({
-			body,
+			body: item.body,
 			bucketName: plugin.settings.bucketName.trim(),
-			contentType,
-			key: objectKey,
+			contentType: item.contentType,
+			key: item.objectKey,
 		});
-		return `![](${publicUrl})`;
+		return `![](${item.publicUrl})`;
 	} catch (error) {
 		if (plugin.settings.notifyDetailedErrors) {
 			new Notice(
@@ -169,11 +218,28 @@ async function uploadOneDroppedFileToR2(
 		}
 		return saveLocalAttachmentAsMarkdown(
 			plugin,
-			body,
-			keyFileName,
+			item.body,
+			item.keyFileName,
 			sourcePath
 		);
 	}
+}
+
+async function executeDropUploadItems(
+	plugin: CloudflareR2SyncPlugin,
+	r2Client: R2ImageClient,
+	items: PreparedDropUploadItem[],
+	sourcePath: string
+): Promise<string[]> {
+	const lines: string[] = [];
+
+	for (const item of items) {
+		lines.push(
+			await uploadPreparedDropItemToR2(plugin, r2Client, item, sourcePath)
+		);
+	}
+
+	return lines;
 }
 
 /**
@@ -224,20 +290,53 @@ export async function completeEditorDropUpload(
 
 	const sourcePath = resolveSourceNotePath(info);
 	const dropPos = getDropPosition(editor, evt);
-	const lines: string[] = [];
 
 	try {
-		for (const file of imageFiles) {
-			lines.push(
-				await uploadOneDroppedFileToR2(plugin, r2Client, file, sourcePath)
+		const createPreviewUrl = plugin.settings.showSyncPreviewModal;
+		const preparedItems = await prepareDropUploadItems(
+			plugin,
+			imageFiles,
+			sourcePath,
+			createPreviewUrl
+		);
+		if (preparedItems.length === 0) {
+			new Notice("Drop upload: no images could be prepared for upload.");
+			return;
+		}
+
+		let itemsToUpload = preparedItems;
+
+		if (plugin.settings.showSyncPreviewModal) {
+			const selectedCandidates = await openR2ImageSyncPreviewModal(
+				plugin.app,
+				preparedItems,
+				{
+					description:
+						"Select the dropped images to upload to cloudflare r2. Review object keys and public urls before uploading.",
+					title: "Sync preview",
+				}
+			);
+			if (selectedCandidates === null || selectedCandidates.length === 0) {
+				return;
+			}
+
+			const selectedIds = new Set(
+				selectedCandidates.map((candidate) => candidate.id)
+			);
+			itemsToUpload = preparedItems.filter((item) =>
+				selectedIds.has(item.id)
 			);
 		}
+
+		const lines = await executeDropUploadItems(
+			plugin,
+			r2Client,
+			itemsToUpload,
+			sourcePath
+		);
+		const insertion = lines.length > 0 ? `${lines.join("\n\n")}\n` : "";
+		editor.replaceRange(insertion, dropPos, dropPos);
 	} catch {
 		new Notice("Drop upload failed.");
-		return;
 	}
-
-	const insertion =
-		lines.length > 0 ? `${lines.join("\n\n")}\n` : "";
-	editor.replaceRange(insertion, dropPos, dropPos);
 }

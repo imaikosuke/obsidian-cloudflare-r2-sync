@@ -43,6 +43,8 @@ export interface PluginSettings {
 	notifyDetailedErrors: boolean;
 	/** When enabled, images dropped into the editor upload to r2 automatically. */
 	autoUploadOnDrop: boolean;
+	/** When enabled, show a preview modal before drop upload, sync images to r2, or upload cover image. */
+	showSyncPreviewModal: boolean;
 }
 
 /** Trims; empty falls back so existing vaults keep using `cover`. */
@@ -69,4 +71,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	r2UploadCachePreset: "yearImmutable",
 	notifyDetailedErrors: false,
 	autoUploadOnDrop: true,
+	showSyncPreviewModal: false,
 };

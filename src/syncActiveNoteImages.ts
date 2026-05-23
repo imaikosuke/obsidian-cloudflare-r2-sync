@@ -26,6 +26,10 @@ import {
 	formatR2ErrorForNotice,
 	truncateForNotice,
 } from "./r2ErrorInsight";
+import {
+	openR2ImageSyncPreviewModal,
+	type R2ImageSyncPreviewCandidate,
+} from "./ui/R2ImageSyncPreviewModal";
 
 interface ResolvedImageReference {
 	file: TFile;
@@ -54,6 +58,18 @@ interface SyncResult {
 	failureDetailLines: string[];
 }
 
+interface PreparedSyncUploadItem extends R2ImageSyncPreviewCandidate {
+	body: ArrayBuffer;
+	contentType: string;
+	file: TFile;
+	groupedReferences: ResolvedImageReference[];
+}
+
+interface PrepareSyncUploadItemsResult {
+	items: PreparedSyncUploadItem[];
+	skipped: number;
+}
+
 export async function syncActiveNoteImages(
 	plugin: CloudflareR2SyncPlugin
 ): Promise<void> {
@@ -76,7 +92,50 @@ export async function syncActiveNoteImages(
 	}
 
 	const content = view.editor.getValue();
-	const result = await syncContent(plugin, r2Client, view.file, content);
+	const { items: preparedItems, skipped } = await prepareSyncUploadItems(
+		plugin,
+		view.file,
+		content
+	);
+
+	if (preparedItems.length === 0) {
+		if (skipped > 0) {
+			new Notice(`Image sync: 0 uploaded, ${skipped} skipped, 0 failed.`);
+		} else {
+			new Notice("Image sync: no local images to upload.");
+		}
+		return;
+	}
+
+	let itemsToUpload = preparedItems;
+
+	if (plugin.settings.showSyncPreviewModal) {
+		const selectedCandidates = await openR2ImageSyncPreviewModal(
+			plugin.app,
+			preparedItems,
+			{
+				description:
+					"Select the local images to upload to cloudflare r2. Review object keys and public urls before syncing.",
+				title: "Sync preview",
+			}
+		);
+		if (selectedCandidates === null || selectedCandidates.length === 0) {
+			return;
+		}
+
+		const selectedIds = new Set(
+			selectedCandidates.map((candidate) => candidate.id)
+		);
+		itemsToUpload = preparedItems.filter((item) => selectedIds.has(item.id));
+	}
+
+	const result = await executeSyncUploadItems(
+		plugin,
+		r2Client,
+		itemsToUpload,
+		content,
+		skipped
+	);
 
 	if (result.nextContent !== content) {
 		view.editor.setValue(result.nextContent);
@@ -105,11 +164,103 @@ export async function syncActiveNoteImages(
 	}
 }
 
-async function syncContent(
+async function prepareSyncUploadItems(
 	plugin: CloudflareR2SyncPlugin,
-	r2Client: R2ImageClient,
 	activeFile: TFile | null,
 	content: string
+): Promise<PrepareSyncUploadItemsResult> {
+	const items: PreparedSyncUploadItem[] = [];
+	let skipped = 0;
+
+	if (!activeFile) {
+		return { items, skipped: 1 };
+	}
+
+	const sourcePath = activeFile.path;
+	const references = collectNoteBodyImageReferences(content);
+	const resolvedReferences = new Map<string, ResolvedImageReference[]>();
+
+	for (const reference of references) {
+		const file = resolveNoteImageLinkToFile(
+			plugin,
+			reference.target,
+			sourcePath
+		);
+		if (!file) {
+			skipped += 1;
+			continue;
+		}
+
+		const existing = resolvedReferences.get(file.path) ?? [];
+		existing.push({ file, reference });
+		resolvedReferences.set(file.path, existing);
+	}
+
+	for (const groupedReferences of resolvedReferences.values()) {
+		const { file } = groupedReferences[0];
+		const uploadDate = new Date();
+
+		let body: ArrayBuffer;
+		let contentType: string;
+		let keyFileName: string;
+
+		if (
+			plugin.settings.convertArticleImagesToWebp &&
+			shouldConvertToWebp(file.extension)
+		) {
+			try {
+				const rawBody = await plugin.app.vault.readBinary(file);
+				body = await convertToWebp(rawBody, plugin.settings.webpQuality);
+			} catch {
+				skipped += groupedReferences.length;
+				continue;
+			}
+
+			contentType = "image/webp";
+			keyFileName = withWebpFileName(file.name);
+		} else {
+			body = await plugin.app.vault.readBinary(file);
+			contentType = getImageContentType(file.extension);
+			keyFileName = file.name;
+		}
+
+		const template = plugin.settings.objectKeyTemplate;
+		const context = await resolveObjectKeyTemplateContext(
+			activeFile,
+			body,
+			template
+		);
+		const objectKey = await buildObjectKeyFromTemplate(
+			keyFileName,
+			uploadDate,
+			template,
+			context
+		);
+		const publicUrl = buildPublicUrl(plugin.settings.publicBaseUrl, objectKey);
+
+		items.push({
+			id: file.path,
+			sourceLabel: file.path,
+			previewUrl: plugin.app.vault.getResourcePath(file),
+			objectKey,
+			publicUrl,
+			referenceCount: groupedReferences.length,
+			body,
+			contentType,
+			file,
+			groupedReferences,
+		});
+	}
+
+	return { items, skipped };
+}
+
+async function executeSyncUploadItems(
+	plugin: CloudflareR2SyncPlugin,
+	r2Client: R2ImageClient,
+	items: PreparedSyncUploadItem[],
+	content: string,
+	baseSkipped: number
 ): Promise<SyncResult> {
 	const failureDetailLines: string[] = [];
 	const seenDetailLines = new Set<string>();
@@ -137,109 +288,35 @@ async function syncContent(
 	const counts: SyncCounts = {
 		alreadyExists: 0,
 		failed: 0,
-		skipped: 0,
+		skipped: baseSkipped,
 		trashFailed: 0,
 		trashed: 0,
 		uploaded: 0,
 	};
 	let nextContent = content;
 
-	if (!activeFile) {
-		return {
-			alreadyExistingImages,
-			counts: { ...counts, skipped: 1 },
-			failureDetailLines,
-			filesToTrash: [],
-			nextContent,
-		};
-	}
-
-	const sourcePath = activeFile.path;
-	const references = collectNoteBodyImageReferences(content);
-	const resolvedReferences = new Map<string, ResolvedImageReference[]>();
-
-	for (const reference of references) {
-		const file = resolveNoteImageLinkToFile(
-			plugin,
-			reference.target,
-			sourcePath
-		);
-		if (!file) {
-			counts.skipped += 1;
-			continue;
-		}
-
-		const existing = resolvedReferences.get(file.path) ?? [];
-		existing.push({ file, reference });
-		resolvedReferences.set(file.path, existing);
-	}
-
-	for (const groupedReferences of resolvedReferences.values()) {
-		const { file } = groupedReferences[0];
-		const uploadDate = new Date();
-
-		let body: ArrayBuffer;
-		let contentType: string;
-		let keyFileName: string;
-
-		if (
-			plugin.settings.convertArticleImagesToWebp &&
-			shouldConvertToWebp(file.extension)
-		) {
-			try {
-				const rawBody = await plugin.app.vault.readBinary(file);
-				body = await convertToWebp(rawBody, plugin.settings.webpQuality);
-			} catch {
-				counts.failed += groupedReferences.length;
-				maybeFailureDetail(
-					"Image sync: local read or WebP conversion failed."
-				);
-				continue;
-			}
-
-			contentType = "image/webp";
-			keyFileName = withWebpFileName(file.name);
-		} else {
-			body = await plugin.app.vault.readBinary(file);
-			contentType = getImageContentType(file.extension);
-			keyFileName = file.name;
-		}
-
-		const template = plugin.settings.objectKeyTemplate;
-		const context = await resolveObjectKeyTemplateContext(
-			activeFile,
-			body,
-			template
-		);
-		const objectKey = await buildObjectKeyFromTemplate(
-			keyFileName,
-			uploadDate,
-			template,
-			context
-		);
-		const publicUrl = buildPublicUrl(plugin.settings.publicBaseUrl, objectKey);
-
+	for (const item of items) {
 		try {
 			await r2Client.uploadIfAbsent({
-				body,
+				body: item.body,
 				bucketName: plugin.settings.bucketName.trim(),
-				contentType,
-				key: objectKey,
+				contentType: item.contentType,
+				key: item.objectKey,
 			});
 			counts.uploaded += 1;
 			nextContent = replaceNoteBodyImageRefsWithUrl(
 				nextContent,
-				groupedReferences.map(({ reference }) => reference),
-				publicUrl
+				item.groupedReferences.map(({ reference }) => reference),
+				item.publicUrl
 			);
-			filesToTrash.push(file);
+			filesToTrash.push(item.file);
 		} catch (error) {
-			counts.failed += groupedReferences.length;
+			counts.failed += item.groupedReferences.length;
 			if (error instanceof ObjectAlreadyExistsError) {
-				counts.alreadyExists += groupedReferences.length;
+				counts.alreadyExists += item.groupedReferences.length;
 				alreadyExistingImages.push({
-					filePath: file.path,
-					objectKey,
+					filePath: item.file.path,
+					objectKey: item.objectKey,
 				});
 			} else {
 				maybeFailureDetail(

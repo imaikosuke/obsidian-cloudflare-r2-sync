@@ -282,6 +282,20 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Sync preview before upload")
+			.setDesc(
+				"Show a preview modal before drop upload, sync images to r2, or upload cover image so you can review upload targets, object keys, and public urls."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showSyncPreviewModal)
+					.onChange(async (value) => {
+						this.plugin.settings.showSyncPreviewModal = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("Error reporting")
 			.setHeading();
 
