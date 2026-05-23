@@ -14,7 +14,7 @@ You can also **drop image files into the Markdown editor** so they upload to R2 
 
 **Article body images:** For **Sync images to r2** and **Auto-upload on drop**, you can choose whether `png`, `jpeg`, `jpg`, and `bmp` are re-encoded to **WebP** before upload (**Convert article images to webp** in settings; on by default). When conversion is on, quality is configurable (**Webp quality**). When conversion is off, those formats upload unchanged (same as other recognized image extensions: `gif`, `ico`, `webp`, `svg`).
 
-**Cover images:** run **Upload cover image** to pick a **PNG** from disk; the file is uploaded without conversion and the public URL is written to a YAML frontmatter property (default **`cover`**; configurable as **Cover frontmatter property** in settings). You can store cover objects under a different R2 path from article body images (see **Cover object key template** below). **Delete r2 images** scans the same frontmatter key for URLs under **Public base URL** (see **Delete uploaded images** below).
+**Cover images:** run **Upload cover image** to pick a supported image from disk (`png`, `jpeg`, `jpg`, `bmp`, `gif`, `ico`, `webp`, `svg`); the file is uploaded and the public URL is written to a YAML frontmatter property (default **`cover`**; configurable as **Cover frontmatter property** in settings). You can optionally re-encode `png`, `jpeg`, `jpg`, and `bmp` to **WebP** before upload (**Convert cover images to webp** in settings; off by default). When conversion is on, quality is configurable (**Webp quality (cover images)**). You can store cover objects under a different R2 path from article body images (see **Cover object key template** below). **Delete r2 images** scans the same frontmatter key for URLs under **Public base URL** (see **Delete uploaded images** below).
 
 Supported image references:
 
@@ -111,12 +111,14 @@ Automation:
 
 Image conversion:
 
-- `Convert article images to webp` (on by default): When enabled, `png` / `jpeg` / `jpg` / `bmp` are re-encoded to WebP for **Sync images to r2** and **Auto-upload on drop**. When disabled, those files upload in their original format. Cover uploads are always PNG and are not affected.
-- `Webp quality (article images)`: Slider from 0.5 to 1. Used only when **Convert article images to webp** is on. Cover uploads stay PNG.
+- `Convert article images to webp` (on by default): When enabled, `png` / `jpeg` / `jpg` / `bmp` are re-encoded to WebP for **Sync images to r2** and **Auto-upload on drop**. When disabled, those files upload in their original format.
+- `Webp quality (article images)`: Slider from 0.5 to 1. Used only when **Convert article images to webp** is on.
+- `Convert cover images to webp` (off by default): When enabled, `png` / `jpeg` / `jpg` / `bmp` are re-encoded to WebP for **Upload cover image**. When disabled, the selected file uploads in its original format. Other recognized cover formats (`gif`, `ico`, `webp`, `svg`) always upload unchanged.
+- `Webp quality (cover images)`: Slider from 0.5 to 1. Used only when **Convert cover images to webp** is on.
 
 Error reporting:
 
-- `Detailed error notices` (off by default): When an R2 request or local read fails, or WebP conversion fails while **Convert article images to webp** is on, show extra notices with a short category (for example credential / signature, bucket or 404, permission / 403, timeout, network), optional HTTP status or error code, and a brief hint. Useful for screenshots when asking for support. **Image sync** shows up to six unique detail lines after the summary notice; **Delete r2 images**, **Upload cover image**, and **drop uploads** append detail to the failure notice when enabled.
+- `Detailed error notices` (off by default): When an R2 request or local read fails, or WebP conversion fails while **Convert article images to webp** or **Convert cover images to webp** is on, show extra notices with a short category (for example credential / signature, bucket or 404, permission / 403, timeout, network), optional HTTP status or error code, and a brief hint. Useful for screenshots when asking for support. **Image sync** shows up to six unique detail lines after the summary notice; **Delete r2 images**, **Upload cover image**, and **drop uploads** append detail to the failure notice when enabled.
 
 ## Usage
 
@@ -142,11 +144,11 @@ Only successfully uploaded images are replaced. Uploaded local image files are m
 
 When the same local image is referenced multiple times in one note, it is uploaded once and all matching references are replaced. Wiki embeds are converted to Markdown image links, for example `![[image.png|alias]]` becomes `![](https://...)`.
 
-### Upload cover image (PNG to frontmatter)
+### Upload cover image (to frontmatter)
 
 1. Open the Markdown note whose YAML frontmatter should receive the cover URL (by default a line `cover:`, or whatever you set under **Cover frontmatter property**).
 2. Run **Upload cover image** from the command palette.
-3. Choose a PNG file. The plugin uploads it to R2 (as PNG) using **Cover object key template** (or **Object key template** when the cover template is empty), then sets that property in the active file’s frontmatter to the public URL.
+3. Choose a supported image file. The plugin uploads it to R2 using **Cover object key template** (or **Object key template** when the cover template is empty), optionally converting raster formats to WebP per **Convert cover images to webp**, then sets that property in the active file’s frontmatter to the public URL.
 
 ### Delete uploaded images
 
@@ -195,6 +197,14 @@ Example: keep the default for article images but put covers under a `cover` fold
 | Object key template | `{year}/{month}/{timestamp}-{filename}` |
 | Cover object key template | `cover/{year}/{month}/{timestamp}-{filename}` |
 
+With **Convert cover images to webp** on, uploading `hero.png` on April 26, 2026 at 14:30:22 creates a key like:
+
+```text
+cover/2026/04/20260426143022-hero.webp
+```
+
+With **Convert cover images to webp** off, the same upload keeps the original extension (for example `.png`) in `{filename}`.
+
 Front slash at the start of a template is optional; leading slashes are normalized away.
 
 Releases that only had **Object key prefix** migrate once: `blog` becomes  
@@ -208,6 +218,8 @@ File names are normalized to lowercase letters, numbers, hyphens, underscores, a
 - Missing local files are skipped.
 - Unsupported file types are ignored.
 - If **Convert article images to webp** is on and WebP conversion fails for a note image, that reference fails and its link is left unchanged.
+- If **Convert cover images to webp** is on and WebP conversion fails for a cover upload, the upload is cancelled and frontmatter is not updated.
+- Unsupported cover file types are rejected with a notice.
 - If an object with the same key already exists in R2, that image fails, an additional notice shows the existing object key, and its link is left unchanged.
 - If an upload fails, only that image is left unchanged.
 - **Auto-upload on drop:** A duplicate key or other upload error triggers a **local fallback** (attachment + local link) instead of leaving the note empty; manual **Sync images to r2** still leaves the link unchanged when the object already exists, as above.
@@ -240,7 +252,7 @@ The TypeScript under `src/` is grouped by responsibility (plugin entry stays at 
 | Features | `syncActiveNoteImages.ts`, `editorDropUpload.ts`, `cover.ts`, `deleteActiveNoteR2Images.ts` |
 | Errors | `r2ErrorInsight.ts` |
 | Settings | `settings.ts`, `ui/SettingsTab.ts` |
-| UI | `ui/R2ImageDeleteModal.ts`, `ui/coverPngPicker.ts` |
+| UI | `ui/R2ImageDeleteModal.ts`, `ui/coverImagePicker.ts` |
 | Commands | `commands/index.ts` |
 
 ## License

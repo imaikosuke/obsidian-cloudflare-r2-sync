@@ -1,10 +1,16 @@
-export function isLikelyPngFile(file: File): boolean {
-	const lowerName = file.name.toLowerCase();
+import { extensionFromFile } from "../droppedImageFiles";
+import { SUPPORTED_IMAGE_EXTENSIONS } from "../imagePaths";
 
-	return lowerName.endsWith(".png") || file.type === "image/png";
+export function isSupportedCoverImageFile(file: File): boolean {
+	const ext = extensionFromFile(file);
+	if (ext !== "" && SUPPORTED_IMAGE_EXTENSIONS.has(ext)) {
+		return true;
+	}
+
+	return file.type.toLowerCase().startsWith("image/");
 }
 
-export function pickPngFile(): Promise<File | null> {
+export function pickCoverImageFile(): Promise<File | null> {
 	return new Promise((resolve) => {
 		const body = activeDocument.body;
 		if (!body) {
@@ -14,7 +20,7 @@ export function pickPngFile(): Promise<File | null> {
 
 		const input = body.createEl("input", {
 			cls: "cloudflare-r2-sync-hidden-file-input",
-			attr: { accept: "image/png", type: "file" },
+			attr: { accept: "image/*", type: "file" },
 		});
 		let settled = false;
 

@@ -1,5 +1,12 @@
 import { MarkdownView, Notice } from "obsidian";
 import type CloudflareR2SyncPlugin from "../main";
+import {
+	convertToWebp,
+	shouldConvertToWebp,
+	withWebpFileName,
+} from "./convert";
+import { extensionFromFile } from "./droppedImageFiles";
+import { getImageContentType } from "./imageContentType";
 import { ObjectAlreadyExistsError } from "./r2";
 import {
 	buildObjectKeyFromTemplate,
@@ -13,9 +20,9 @@ import {
 	truncateForNotice,
 } from "./r2ErrorInsight";
 import {
-	isLikelyPngFile,
-	pickPngFile,
-} from "./ui/coverPngPicker";
+	isSupportedCoverImageFile,
+	pickCoverImageFile,
+} from "./ui/coverImagePicker";
 
 export async function uploadCoverImage(
 	plugin: CloudflareR2SyncPlugin
@@ -38,21 +45,54 @@ export async function uploadCoverImage(
 		return;
 	}
 
-	const picked = await pickPngFile();
+	const picked = await pickCoverImageFile();
 	if (picked === null) {
 		new Notice("Cover upload: no file selected.");
 		return;
 	}
 
-	if (!isLikelyPngFile(picked)) {
-		new Notice("Cover upload: choose a PNG image.");
+	if (!isSupportedCoverImageFile(picked)) {
+		new Notice("Cover upload: unsupported image type.");
 		return;
 	}
 
-	const body = await picked.arrayBuffer();
+	const ext = extensionFromFile(picked);
+	let body: ArrayBuffer;
+	let contentType: string;
+	let keyFileName: string;
+
+	if (
+		plugin.settings.convertCoverImagesToWebp &&
+		ext !== "" &&
+		shouldConvertToWebp(ext)
+	) {
+		try {
+			const rawBody = await picked.arrayBuffer();
+			body = await convertToWebp(rawBody, plugin.settings.coverWebpQuality);
+		} catch {
+			if (plugin.settings.notifyDetailedErrors) {
+				new Notice("Cover upload: WebP conversion failed.", 12_000);
+			} else {
+				new Notice("Cover upload: WebP conversion failed.");
+			}
+			return;
+		}
+
+		contentType = "image/webp";
+		keyFileName = withWebpFileName(picked.name);
+	} else {
+		body = await picked.arrayBuffer();
+		const keyExt = ext !== "" ? ext : "png";
+		contentType =
+			ext !== ""
+				? getImageContentType(ext)
+				: (picked.type !== "" ? picked.type : "application/octet-stream");
+		keyFileName = picked.name !== "" ? picked.name : `image.${keyExt}`;
+	}
+
 	const uploadDate = new Date();
 	const objectKey = buildObjectKeyFromTemplate(
-		picked.name,
+		keyFileName,
 		uploadDate,
 		resolveCoverObjectKeyTemplate(plugin.settings)
 	);
@@ -62,7 +102,7 @@ export async function uploadCoverImage(
 		await r2Client.uploadIfAbsent({
 			body,
 			bucketName: plugin.settings.bucketName.trim(),
-			contentType: "image/png",
+			contentType,
 			key: objectKey,
 		});
 	} catch (error) {
@@ -86,10 +126,12 @@ export async function uploadCoverImage(
 		return;
 	}
 
+	const frontmatterProperty = resolveCoverFrontmatterProperty(plugin.settings);
+
 	try {
 		await plugin.app.fileManager.processFrontMatter(view.file, (frontmatter) => {
 			const data = frontmatter as Record<string, unknown>;
-			data[resolveCoverFrontmatterProperty(plugin.settings)] = publicUrl;
+			data[frontmatterProperty] = publicUrl;
 		});
 	} catch {
 		new Notice(
@@ -98,5 +140,7 @@ export async function uploadCoverImage(
 		return;
 	}
 
-	new Notice("Cover upload: cover URL saved to frontmatter.");
+	new Notice(
+		`Cover upload: URL saved to frontmatter (${frontmatterProperty}).`
+	);
 }

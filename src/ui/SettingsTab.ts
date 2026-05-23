@@ -260,11 +260,12 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 			.setHeading();
 
 		let refreshWebpQualityRowVisibility: () => void = () => {};
+		let refreshCoverWebpQualityRowVisibility: () => void = () => {};
 
 		new Setting(containerEl)
 			.setName("Convert article images to webp")
 			.setDesc(
-				"When enabled, PNG, JPEG, JPG, and bmp are re-encoded to webp before upload for sync images to r2 and auto-upload on drop. When disabled, originals are uploaded. Cover uploads stay PNG."
+				"When enabled, PNG, JPEG, JPG, and bmp are re-encoded to webp before upload for sync images to r2 and auto-upload on drop. When disabled, originals are uploaded."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -278,9 +279,7 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 
 		const webpQualitySetting = new Setting(containerEl)
 			.setName("Webp quality (article images)")
-			.setDesc(
-				"Quality when converting to webp (0 to 1). Cover uploads stay PNG."
-			)
+			.setDesc("Quality when converting to webp (0 to 1).")
 			.addSlider((slider) =>
 				slider
 					.setLimits(0.5, 1, 0.05)
@@ -298,5 +297,41 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 		};
 
 		refreshWebpQualityRowVisibility();
+
+		new Setting(containerEl)
+			.setName("Convert cover images to webp")
+			.setDesc(
+				"When enabled, PNG, JPEG, JPG, and bmp are re-encoded to webp on cover upload. When disabled, originals are uploaded."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.convertCoverImagesToWebp)
+					.onChange(async (value) => {
+						this.plugin.settings.convertCoverImagesToWebp = value;
+						await this.plugin.saveSettings();
+						refreshCoverWebpQualityRowVisibility();
+					})
+			);
+
+		const coverWebpQualitySetting = new Setting(containerEl)
+			.setName("Webp quality (cover images)")
+			.setDesc("Quality when converting cover images to webp (0 to 1).")
+			.addSlider((slider) =>
+				slider
+					.setLimits(0.5, 1, 0.05)
+					.setValue(this.plugin.settings.coverWebpQuality)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.coverWebpQuality = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		refreshCoverWebpQualityRowVisibility = (): void => {
+			coverWebpQualitySetting.settingEl.style.display =
+				this.plugin.settings.convertCoverImagesToWebp ? "" : "none";
+		};
+
+		refreshCoverWebpQualityRowVisibility();
 	}
 }

@@ -29,6 +29,13 @@ export interface PluginSettings {
 	convertArticleImagesToWebp: boolean;
 	/** WebP quality for converted article images (0–1). */
 	webpQuality: number;
+	/**
+	 * When true, PNG, JPEG, JPG, and BMP are re-encoded to WebP before cover upload.
+	 * When false, originals are uploaded unchanged.
+	 */
+	convertCoverImagesToWebp: boolean;
+	/** WebP quality for converted cover images (0–1). */
+	coverWebpQuality: number;
 	/** Preset for `Cache-Control` on uploaded objects. */
 	r2UploadCachePreset: R2CachePreset;
 	/** Show categorized r2/SDK failure text in notices (for support screenshots). */
@@ -56,6 +63,8 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	secretAccessKeySecretName: "",
 	convertArticleImagesToWebp: true,
 	webpQuality: 0.8,
+	convertCoverImagesToWebp: false,
+	coverWebpQuality: 0.8,
 	r2UploadCachePreset: "yearImmutable",
 	notifyDetailedErrors: false,
 	autoUploadOnDrop: true,
