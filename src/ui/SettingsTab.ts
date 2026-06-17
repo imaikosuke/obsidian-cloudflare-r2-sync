@@ -342,7 +342,6 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 				slider
 					.setLimits(0.5, 1, 0.05)
 					.setValue(this.plugin.settings.webpQuality)
-					.setDynamicTooltip()
 					.onChange(async (value) => {
 						this.plugin.settings.webpQuality = value;
 						await this.plugin.saveSettings();
@@ -378,7 +377,6 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 				slider
 					.setLimits(0.5, 1, 0.05)
 					.setValue(this.plugin.settings.coverWebpQuality)
-					.setDynamicTooltip()
 					.onChange(async (value) => {
 						this.plugin.settings.coverWebpQuality = value;
 						await this.plugin.saveSettings();
