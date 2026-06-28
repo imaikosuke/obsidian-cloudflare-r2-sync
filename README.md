@@ -1,273 +1,286 @@
 # Cloudflare R2 Sync
 
-Sync local note images to Cloudflare R2.
+Upload local note images to Cloudflare R2 and replace their links with public URLs.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/imaikosuke/obsidian-cloudflare-r2-sync/releases)
 [![Obsidian Plugin](https://img.shields.io/badge/Obsidian-Plugin-7c3aed.svg)](https://obsidian.md)
 
-## What it does
+> [日本語ver](README.ja.md)
 
-Cloudflare R2 Sync uploads local image files referenced from the active Markdown note to Cloudflare R2, replaces only the successfully uploaded image links with public URLs, then moves the uploaded local files to Obsidian trash.
+## Overview
 
-You can also **drop image files into the Markdown editor** so they upload to R2 and appear as `![](public URL)` at the drop position (see **Auto-upload on drop** in settings). If an upload fails, the image is saved as a normal vault attachment and linked locally instead.
+Cloudflare R2 Sync moves local images out of your vault and into Cloudflare R2. When you run a sync, the plugin finds local image references in the active note, uploads them to R2, replaces the links with public URLs, and moves the local files to Obsidian trash.
 
-**Article body images:** For **Sync images to r2** and **Auto-upload on drop**, you can choose whether `png`, `jpeg`, `jpg`, and `bmp` are re-encoded to **WebP** before upload (**Convert article images to webp** in settings; on by default). When conversion is on, quality is configurable (**Webp quality**). When conversion is off, those formats upload unchanged (same as other recognized image extensions: `gif`, `ico`, `webp`, `svg`).
+Key features:
 
-**Cover images:** run **Upload cover image** to pick a supported image from disk (`png`, `jpeg`, `jpg`, `bmp`, `gif`, `ico`, `webp`, `svg`); the file is uploaded and the public URL is written to a YAML frontmatter property (default **`cover`**; configurable as **Cover frontmatter property** in settings). You can optionally re-encode `png`, `jpeg`, `jpg`, and `bmp` to **WebP** before upload (**Convert cover images to webp** in settings; off by default). When conversion is on, quality is configurable (**Webp quality (cover images)**). You can store cover objects under a different R2 path from article body images (see **Cover object key template** below). **Delete r2 images** scans the same frontmatter key for URLs under **Public base URL** (see **Delete uploaded images** below).
+- **Sync images to R2** — upload all local images referenced in the active note at once.
+- **Auto-upload on drop** — drag an image into the editor and it uploads immediately.
+- **Upload cover image** — pick an image and write its public URL to YAML frontmatter.
+- **Delete R2 images** — remove selected R2 objects and clean up their note references.
+- **WebP conversion** — optionally re-encode `png`, `jpeg`, `jpg`, and `bmp` to WebP before upload.
 
-Supported image references:
+Supported image reference formats:
 
-- Markdown images: `![alt](path/to/image.png)`
-- Markdown images with angle brackets: `![alt](<path/to/image.png>)`
-- Wiki embeds: `![[path/to/image.png]]`
-- Wiki embeds with aliases: `![[path/to/image.png|alias]]`
+- `![alt](path/to/image.png)`
+- `![alt](<path/to/image.png>)`
+- `![[path/to/image.png]]`
+- `![[path/to/image.png|alias]]`
 
-Remote `http://` and `https://` image URLs are skipped.
+Remote `http://` and `https://` URLs are skipped automatically.
+
+## Table of Contents
+
+1. [Quick Start](#quick-start)
+2. [Requirements](#requirements)
+3. [Cloudflare setup](#cloudflare-setup)
+4. [Store credentials in Obsidian](#store-credentials-in-obsidian)
+5. [Plugin settings](#plugin-settings)
+6. [Usage](#usage)
+7. [Upload paths](#upload-paths)
+8. [Troubleshooting](#troubleshooting)
+9. [Development](#development)
+
+## Quick Start
+
+1. **Create an R2 bucket** with a public URL — [details](#create-a-bucket).
+2. **Configure CORS** on the bucket so Obsidian can upload — [details](#configure-cors).
+3. **Create R2 API access keys** (S3-compatible) — [details](#create-r2-api-access-keys).
+4. **Store the keys as Obsidian secrets** — [details](#store-credentials-in-obsidian).
+5. **Configure the plugin** with your account ID, bucket name, public URL, and secret names — [details](#plugin-settings).
+6. Open a note with local images and run **Sync images to r2** from the command palette.
 
 ## Requirements
 
-- Obsidian `1.11.4` or later
-- Desktop Obsidian
+- Obsidian `1.11.4` or later (desktop only)
 - A Cloudflare account with R2 enabled
-- An R2 bucket
-- An R2 access key pair that can upload and delete objects
-- A public URL for the bucket, such as an R2 custom domain or public bucket URL
+- An R2 bucket with a public URL configured
+- An R2 S3-compatible access key pair (write and delete permissions)
 
 ## Cloudflare setup
 
-### Create a bucket (what to choose)
+### Create a bucket
 
-In the dashboard, open **R2** → **Create bucket**. For use with this plugin, set:
+1. Open the Cloudflare dashboard → **R2** → **Create bucket**.
+2. Set the bucket name (for example `obsidian`), leave location as **Automatic** and storage class as **Standard**.
+3. After creation, open the bucket's **Settings** tab and configure a public URL (R2 custom domain or the public bucket URL).
+4. Keep the public URL — you will enter it in the plugin as **Public base URL**.
 
-- **Bucket name**: Any permanent name you like (for example `obsidian`).
-- **Location**: **Automatic**.
-- **Default storage class**: **Standard**.
+### Create R2 API access keys
 
-1. Create the bucket with those choices.
-2. Select Settings tab.
-3. Configure a public URL for the bucket.
-4. Create R2 credentials with permission to upload and delete objects in the bucket.
-5. Keep the following values ready:
-   - Cloudflare account ID
-   - R2 bucket name
-   - Public base URL
-   - Access key ID
-   - Secret access key
+The plugin authenticates with S3-compatible credentials, not a Cloudflare API token.
 
-### Where to find the account ID and R2 access keys
+1. Dashboard → **R2** → **Manage R2 API Tokens**.
+2. Open **Access keys** → **Create access key**.
+3. Give the key permission to **write and delete** objects in your bucket.
+4. Copy **Access Key ID** and **Secret Access Key** immediately — the secret is shown only once.
 
-**Account ID** is your Cloudflare account identifier (a 32-character hex string). The plugin builds the R2 S3 endpoint `https://<account_id>.r2.cloudflarestorage.com`, so it must match the account that owns the bucket.
+**Where to find your Account ID:** Dashboard → **R2** overview, or **Workers & Pages** → **Overview**. It is a 32-character hex string. See [Find account and zone IDs](https://developers.cloudflare.com/fundamentals/account/find-account-and-zone-ids/).
 
-- Dashboard → **R2** → the overview page usually shows **Account ID** (often in a summary or account-details panel).
-- Alternatively: **Workers & Pages** → **Overview** → copy **Account ID**.
-- Same value as **Account ID** on **Websites** → your domain → **Overview**. See Cloudflare’s guide: [Find account and zone IDs](https://developers.cloudflare.com/fundamentals/account/find-account-and-zone-ids/).
+### Configure CORS
 
-**Access Key ID** and **Secret Access Key** are the S3-compatible pair used to sign R2 requests (not an API Bearer token).
+The plugin sends `PUT` and `DELETE` requests directly to the R2 S3 API from Obsidian desktop (origin `app://obsidian.md`). Without a CORS policy the bucket rejects these requests, and every upload or delete fails silently.
 
-- Dashboard → **R2** → **Manage R2 API Tokens** (from the R2 overview or sidebar).
-- Open the **Access keys** section (wording may vary slightly) → **Create access key**.
-- Copy **Access Key ID** and **Secret Access Key** immediately; the secret is shown only once. Give the key permission to write and delete objects in your bucket (or broader R2 permissions if you prefer).
+1. Dashboard → **R2** → select your bucket → **Settings** → **CORS policy**.
+2. Paste the following JSON and save:
 
-In the plugin, **Access key ID secret** and **Secret access key secret** are not the raw Cloudflare strings. They are the **names of Obsidian secrets** that store those two values. Create those secrets first, then pick their names in the plugin settings.
+```json
+[
+  {
+    "AllowedOrigins": ["app://obsidian.md"],
+    "AllowedMethods": ["PUT", "DELETE"],
+    "AllowedHeaders": ["*"]
+  }
+]
+```
 
-The access key ID and secret access key should not be pasted into normal plugin text fields. Store the values only as Obsidian secrets by following the next section.
+### Values to collect
+
+Before moving on, have these five values ready:
+
+| Value | Where to find it |
+| --- | --- |
+| Account ID | R2 overview or Workers & Pages overview |
+| Bucket name | The name you chose |
+| Public base URL | Bucket Settings → public URL |
+| Access Key ID | Copied when creating the access key |
+| Secret Access Key | Copied when creating the access key |
 
 ## Store credentials in Obsidian
 
-This plugin uses Obsidian secret storage. The settings screen stores only the names of the secrets, not the secret values.
+The plugin never stores raw credentials in its settings. Instead it reads them from Obsidian's built-in secret storage. Create two secrets before configuring the plugin:
 
-1. Open Obsidian settings.
-2. Open the secret storage or keychain area.
-3. Create one secret for the R2 access key ID.
-4. Create another secret for the R2 secret access key.
-5. Give both secrets clear names, for example:
-   - `cloudflare-r2-access-key-id`
-   - `cloudflare-r2-secret-access-key`
+1. Open **Obsidian Settings** → find the secret storage or keychain section.
+2. Create a secret for the R2 Access Key ID, for example named `r2-access-key-id`.
+3. Create a secret for the R2 Secret Access Key, for example named `r2-secret-access-key`.
 
-Do not paste secret values into normal text settings.
+You will pick these names in the plugin settings. The plugin never touches the secret values directly.
 
 ## Plugin settings
 
-Open `Settings` → `Community plugins` → `Cloudflare R2 Sync` and configure:
+Open **Settings** → **Community plugins** → **Cloudflare R2 Sync**.
 
-Each successful `PutObject` sets object `Cache-Control` from the plugin setting **Upload cache control** (default matches `public, max-age=31536000, immutable`). Your Cloudflare cache rules may still override at the edge.
+### R2 connection
 
-Connection, upload paths, and secrets:
+| Setting | Description |
+| --- | --- |
+| **Account ID** | Your 32-character Cloudflare account ID. |
+| **Bucket name** | The R2 bucket that receives uploaded images. |
+| **Public base URL** | URL prefix used in replaced links, for example `https://images.example.com`. |
+| **Object key template** | R2 object path pattern for article images (see [Upload paths](#upload-paths)). Default: `{year}/{month}/{timestamp}-{filename}`. |
+| **Cover object key template** | Optional separate path pattern for cover uploads. Leave empty to reuse the article template. |
+| **Cover frontmatter property** | YAML key where **Upload cover image** writes the public URL. Default: `cover`. |
+| **Upload cache control** | `Cache-Control` applied to every uploaded object. Default: 1 year, immutable. |
+| **Access key ID secret** | Name of the Obsidian secret containing the R2 access key ID. |
+| **Secret access key secret** | Name of the Obsidian secret containing the R2 secret access key. |
 
-- `Account ID`: Your Cloudflare account ID.
-- `Bucket name`: The R2 bucket to upload images to.
-- `Public base URL`: The URL prefix used in the replaced Markdown links, for example `https://images.example.com`.
-- `Object key template`: Path pattern for **article body images** synced with **Sync images to r2** or **Auto-upload on drop** (placeholders: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}`, `{filename}`, `{slug}`, `{notepath}`, `{hash}`, `{uuid}`).
-- `Cover object key template`: Optional path pattern used only for **Upload cover image**. Same placeholders as above. Leave empty to reuse `Object key template`.
-- `Cover frontmatter property`: YAML key where **Upload cover image** writes the public URL, and where **Delete r2 images** looks for a matching cover URL. Leave empty to use `cover`.
-- `Upload cache control`: `Cache-Control` applied to each successful upload.
-- `Access key ID secret`: Select the Obsidian secret that contains the R2 access key ID.
-- `Secret access key secret`: Select the Obsidian secret that contains the R2 secret access key.
+### Automation
 
-Automation:
+| Setting | Default | Description |
+| --- | --- | --- |
+| **Auto-upload on drop** | On | Upload images to R2 when dropped into the editor. Disable for manual-only workflow. |
+| **Sync preview before upload** | Off | Show a preview modal before any upload so you can review object keys and URLs, then select which images to upload. |
 
-- `Auto-upload on drop` (on by default): When you drag image files into the Markdown editor, the plugin intercepts the drop, uploads using the same rules as **Sync images to r2** (including optional WebP conversion for body images per **Convert article images to webp**, and the **Object key template**), and inserts markdown at the drop position. Turn this off if you only want manual sync. If R2 credentials or other required settings are missing, Obsidian’s normal attachment behavior runs instead.
-- `Sync preview before upload` (off by default): When enabled, **Auto-upload on drop**, **Sync images to r2**, and **Upload cover image** open a preview modal first so you can review upload targets, object keys, and public URLs, then upload only the images you select.
+### Image conversion
 
-Image conversion:
+| Setting | Default | Description |
+| --- | --- | --- |
+| **Convert article images to webp** | On | Re-encode `png`, `jpeg`, `jpg`, `bmp` to WebP for sync and drop uploads. Other formats upload unchanged. |
+| **Webp quality (article images)** | 0.8 | Quality slider (0.5–1). Visible only when conversion is on. |
+| **Convert cover images to webp** | Off | Re-encode raster formats to WebP on cover upload. |
+| **Webp quality (cover images)** | 0.8 | Quality slider (0.5–1). Visible only when conversion is on. |
 
-- `Convert article images to webp` (on by default): When enabled, `png` / `jpeg` / `jpg` / `bmp` are re-encoded to WebP for **Sync images to r2** and **Auto-upload on drop**. When disabled, those files upload in their original format.
-- `Webp quality (article images)`: Slider from 0.5 to 1. Used only when **Convert article images to webp** is on.
-- `Convert cover images to webp` (off by default): When enabled, `png` / `jpeg` / `jpg` / `bmp` are re-encoded to WebP for **Upload cover image**. When disabled, the selected file uploads in its original format. Other recognized cover formats (`gif`, `ico`, `webp`, `svg`) always upload unchanged.
-- `Webp quality (cover images)`: Slider from 0.5 to 1. Used only when **Convert cover images to webp** is on.
+### Error reporting
 
-Error reporting:
-
-- `Detailed error notices` (off by default): When an R2 request or local read fails, or WebP conversion fails while **Convert article images to webp** or **Convert cover images to webp** is on, show extra notices with a short category (for example credential / signature, bucket or 404, permission / 403, timeout, network), optional HTTP status or error code, and a brief hint. Useful for screenshots when asking for support. **Image sync** shows up to six unique detail lines after the summary notice; **Delete r2 images**, **Upload cover image**, and **drop uploads** append detail to the failure notice when enabled.
+| Setting | Default | Description |
+| --- | --- | --- |
+| **Detailed error notices** | Off | Show extra notices with error category, HTTP status, and a short hint after a failure. Useful for support screenshots. |
 
 ## Usage
 
 ### Drop images into the editor
 
 1. Open a Markdown note and focus the editor.
-2. Drag one or more supported images from your file manager onto the note. With **Auto-upload on drop** enabled and R2 configured, they upload and `![](…)` links are inserted where you dropped them.
-3. With **Sync preview before upload** enabled, a preview modal opens first so you can review object keys and public URLs and choose which dropped images to upload.
-4. If upload fails (network, duplicate object key, and so on), the file is saved under your attachment settings and a local embed is inserted. With **Detailed error notices** on, you may see an extra notice with failure details.
+2. Drag one or more images from your file manager into the editor.
+3. With **Auto-upload on drop** enabled, the images upload to R2 and `![](…)` links appear at the drop position.
+4. If **Sync preview before upload** is on, a preview modal opens first so you can select which images to upload.
+5. If an upload fails, the file is saved as a normal attachment and a local embed is inserted instead.
 
-### Upload images
+### Sync images in a note
 
 1. Open the Markdown note that contains local image references.
-2. Run `Sync images to r2` from the command palette, or click the ribbon icon.
-3. With **Sync preview before upload** enabled, review the detected local images in the preview modal, select the images to upload, then click `Upload selected`.
+2. Run **Sync images to r2** from the command palette, or click the ribbon icon.
+3. If **Sync preview before upload** is on, review the detected images in the preview modal and click **Upload selected**.
 4. Wait for the result notice.
 
-Example result:
+Example result notice:
 
-```text
+```
 Image sync: 3 uploaded, 1 skipped, 0 failed, 3 trashed, 0 trash failed.
 ```
 
-Only successfully uploaded images are replaced. Uploaded local image files are moved to Obsidian trash after the note is updated; they are not permanently deleted. If moving a file to trash fails, the result notice reports it and the uploaded file remains in the vault.
+Successfully uploaded images have their local links replaced with public R2 URLs. The original local files are moved to Obsidian trash (not permanently deleted). If a local file has multiple references in the note, it uploads once and all references are replaced. Wiki embeds are converted to Markdown links (for example `![[image.png|alias]]` becomes `![alias](https://…)`).
 
-When the same local image is referenced multiple times in one note, it is uploaded once and all matching references are replaced. Wiki embeds are converted to Markdown image links, for example `![[image.png|alias]]` becomes `![](https://...)`.
+### Upload a cover image
 
-### Upload cover image (to frontmatter)
-
-1. Open the Markdown note whose YAML frontmatter should receive the cover URL (by default a line `cover:`, or whatever you set under **Cover frontmatter property**).
+1. Open the note that should receive a cover URL in its frontmatter.
 2. Run **Upload cover image** from the command palette.
-3. Choose a supported image file. With **Sync preview before upload** enabled, review the cover image in the preview modal, then click `Upload selected`.
-4. The plugin uploads it to R2 using **Cover object key template** (or **Object key template** when the cover template is empty), optionally converting raster formats to WebP per **Convert cover images to webp**, then sets that property in the active file’s frontmatter to the public URL.
+3. Choose a supported image file (`png`, `jpeg`, `jpg`, `bmp`, `gif`, `ico`, `webp`, `svg`).
+4. If **Sync preview before upload** is on, confirm in the preview modal.
+5. The plugin uploads the file using the **Cover object key template** (or the article template if the cover template is empty) and writes the public URL to the frontmatter property configured under **Cover frontmatter property**.
 
 ### Delete uploaded images
 
-1. Open the Markdown note that contains R2 image links created by this plugin (and/or a frontmatter URL under your **Cover frontmatter property** pointing at R2).
-2. Run `Delete r2 images` from the command palette.
-3. Preview the detected images, select the images to delete, then click `Delete selected`.
-4. Wait for the result notice.
+1. Open a note containing R2 image links created by this plugin (and/or a frontmatter cover URL).
+2. Run **Delete r2 images** from the command palette.
+3. Review the detected images in the preview modal, select the ones to delete, and click **Delete selected**.
+4. Successfully deleted objects are removed from R2. Their Markdown links are stripped from the note, and a deleted cover URL removes the matching frontmatter line.
 
-The plugin lists every reference whose URL starts with the configured **Public base URL**:
+The delete command finds every reference whose URL starts with **Public base URL**, including:
 
-- Markdown image links: `![](https://…)` (and angle-bracket targets).
-- YAML **frontmatter** in the leading `---` block: a single line `key:` matching **Cover frontmatter property** (default `cover:`) whose value is that public URL (plain, double-quoted, or single-quoted).
-
-Successfully deleted objects are removed from the note: Markdown links are stripped, and a deleted cover removes the entire matching frontmatter line. If deleting an object in R2 fails, the corresponding note text is left unchanged.
+- Markdown image links: `![alt](https://…)` and angle-bracket variants.
+- A frontmatter line whose key matches **Cover frontmatter property** and whose value is that public URL.
 
 ## Upload paths
 
-Article body images and cover images both use the same placeholder rules, but you can choose **different templates** so covers live under their own prefix (for example `cover/…`).
+Both article images and cover images use the same placeholder rules but can have separate templates.
+
+### Placeholders
+
+| Group | Placeholders |
+| --- | --- |
+| Date and time | `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}` |
+| File | `{filename}` |
+| Note | `{slug}`, `{notepath}` |
+| Upload | `{hash}`, `{uuid}` |
+
+- `{timestamp}` — compact local time: `YYYYMMDDHHmmss`.
+- `{filename}` — original file name normalized to lowercase, safe characters, with the final extension set to `.webp` when conversion is on.
+- `{slug}` — active note file name without extension, normalized (for example `my-post` from `My Post.md`).
+- `{notepath}` — vault-relative note path without extension, each segment normalized (for example `blog/my-post` from `blog/My Post.md`).
+- `{hash}` — first 12 hex characters of the SHA-256 hash of the uploaded bytes. Computed only when present in the template.
+- `{uuid}` — a new UUID v4 (no hyphens) per upload. Generated only when present in the template.
+
+When the active note cannot be resolved, `{slug}` and `{notepath}` fall back to `untitled`.
 
 ### Article body images (`Object key template`)
 
-Used when you run **Sync images to r2**, and when **Auto-upload on drop** handles drops into the editor. Placeholders are expanded with the upload time in **local time**: `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}`, `{timestamp}` (compact `YYYYMMDDHHmmss`), and `{filename}` (normalized: lowercase, safe characters).
+Default: `{year}/{month}/{timestamp}-{filename}`
 
-Note and upload placeholders use the **active Markdown note** when available:
+Example — syncing `My Screenshot.png` on 15 Apr 2026 at 14:30:22 with **Convert article images to webp** on:
 
-- `{slug}`: Note file name without extension, normalized (for example `my-post` from `My Post.md`).
-- `{notepath}`: Vault-relative note path without extension, each folder segment normalized (for example `blog/my-post` from `blog/My Post.md`).
-- `{hash}`: First 12 hex characters of the SHA-256 hash of the uploaded bytes (computed only when the template includes `{hash}`).
-- `{uuid}`: A new UUID v4 without hyphens per upload (generated only when the template includes `{uuid}`).
-
-When the note cannot be resolved (for example a drop onto an unsaved note), `{slug}` and `{notepath}` fall back to `untitled`.
-
-The default template matches the original layout:
-
-```text
-{year}/{month}/{timestamp}-{filename}
 ```
-
-For example, running the sync on April 26, 2026 at 14:30:22 for `My Screenshot 01.png` creates a key like this when **Convert article images to webp** is on:
-
-```text
-2026/04/20260426143022-my-screenshot-01.webp
+2026/04/20260415143022-my-screenshot.webp
 ```
-
-With **Convert article images to webp** off, the same sync would use the original extension (for example `.png`) in `{filename}`.
 
 Example with note `blog/My Post.md` and template `{slug}/{filename}`:
 
-```text
-my-post/20260426143022-my-screenshot-01.webp
+```
+my-post/20260415143022-my-screenshot.webp
 ```
 
 ### Cover images (`Cover object key template`)
 
-Used when you run **Upload cover image**. If you leave this field empty, the plugin uses the same template as **Object key template**.
+Leave empty to reuse the article template. To give covers their own prefix:
 
-Example: keep the default for article images but put covers under a `cover` folder:
-
-| Setting | Example value |
+| Setting | Value |
 | --- | --- |
 | Object key template | `{year}/{month}/{timestamp}-{filename}` |
 | Cover object key template | `cover/{year}/{month}/{timestamp}-{filename}` |
 
-With **Convert cover images to webp** on, uploading `hero.png` on April 26, 2026 at 14:30:22 creates a key like:
+Uploading `hero.png` on 15 Apr 2026 at 14:30:22 with **Convert cover images to webp** on:
 
-```text
-cover/2026/04/20260426143022-hero.webp
+```
+cover/2026/04/20260415143022-hero.webp
 ```
 
-With **Convert cover images to webp** off, the same upload keeps the original extension (for example `.png`) in `{filename}`.
-
-Front slash at the start of a template is optional; leading slashes are normalized away.
-
-Releases that only had **Object key prefix** migrate once: `blog` becomes  
-`blog/{year}/{month}/{timestamp}-{filename}`.
-
-File names and note segments are normalized to lowercase letters, numbers, hyphens, underscores, and dots (see `{filename}` and `{notepath}` above).
-
-## Skipped and failed files
-
-- Image URLs that already start with `http://` or `https://` are skipped.
-- Missing local files are skipped.
-- Unsupported file types are ignored.
-- If **Convert article images to webp** is on and WebP conversion fails for a note image, that reference fails and its link is left unchanged.
-- If **Convert cover images to webp** is on and WebP conversion fails for a cover upload, the upload is cancelled and frontmatter is not updated.
-- Unsupported cover file types are rejected with a notice.
-- If an object with the same key already exists in R2, that image fails, an additional notice shows the existing object key, and its link is left unchanged.
-- If an upload fails, only that image is left unchanged.
-- **Auto-upload on drop:** A duplicate key or other upload error triggers a **local fallback** (attachment + local link) instead of leaving the note empty; manual **Sync images to r2** still leaves the link unchanged when the object already exists, as above.
-
-Turn on **Detailed error notices** under **Error reporting** when you need clearer failure reasons (credentials, wrong bucket, timeouts, and so on). The summary line still shows counts such as `failed`; details appear in follow-up notices while the option is enabled.
+Leading slashes in templates are normalized away.
 
 ## Development
 
 ### Build
 
-Requires [pnpm](https://pnpm.io). From the repository root:
+The repository uses [mise](https://mise.jdx.dev) to manage the Node.js version (`mise.toml` pins Node 24) and [pnpm](https://pnpm.io) as the package manager (pinned in `package.json`).
 
 ```bash
+# Install mise (if not already installed), then let it set up Node:
+mise install
+
+# Install dependencies and run all checks:
 pnpm install
 pnpm check    # TypeScript, ESLint, production bundle
 ```
 
-`pnpm build` runs typecheck and esbuild; `pnpm dev` runs the esbuild watcher (see `esbuild.config.mjs`).
+`pnpm build` runs typecheck and esbuild. `pnpm dev` runs the esbuild watcher.
 
 ### Source layout
 
-The TypeScript under `src/` is grouped by responsibility (plugin entry stays at `main.ts`):
-
 | Area | Files |
 | --- | --- |
-| R2 connection | `pluginR2.ts` (secrets and client from plugin settings), `r2.ts` (S3 client wrapper) |
-| URLs and keys | `publicR2Url.ts`, `objectKeyTemplate.ts` (templates, settings migration) |
+| R2 connection | `pluginR2.ts`, `r2.ts` |
+| URLs and keys | `publicR2Url.ts`, `objectKeyTemplate.ts` |
 | Images | `imagePaths.ts`, `imageContentType.ts`, `convert.ts`, `droppedImageFiles.ts` |
-| Markdown / vault | `noteBodyImageRefs.ts` (local embeds for sync), `noteMarkdownR2PublicLinks.ts` (public URL embeds and configurable frontmatter cover property for delete) |
+| Markdown / vault | `noteBodyImageRefs.ts`, `noteMarkdownR2PublicLinks.ts` |
 | Features | `syncActiveNoteImages.ts`, `editorDropUpload.ts`, `cover.ts`, `deleteActiveNoteR2Images.ts` |
 | Errors | `r2ErrorInsight.ts` |
 | Settings | `settings.ts`, `ui/SettingsTab.ts` |
