@@ -22,20 +22,20 @@
 	"authorUrl": "https://github.com/imaikosuke",
 	"license": "MIT",
 	"devDependencies": {
-		"@eslint/js": "^9.39.5",
-		"@types/node": "^26.6.2",
-		"@typescript-eslint/eslint-plugin": "^8.71.0",
-		"@typescript-eslint/parser": "^8.71.0",
+		"@eslint/js": "^10.0.1",
+		"@types/node": "^26.6.6",
+		"@typescript-eslint/eslint-plugin": "^8.72.1",
+		"@typescript-eslint/parser": "^8.72.1",
 		"esbuild": "0.28.2",
-		"eslint": "^9.39.1",
-		"eslint-plugin-obsidianmd": "^0.4.2",
-		"obsidian": "^1.13.1",
-		"tslib": "2.8.1",
+		"eslint": "^10.14.0",
+		"eslint-plugin-obsidianmd": "^0.5.1",
+		"obsidian": "^1.14.4",
+		"tslib": "2.9.1",
 		"typescript": "^6.0.3",
-		"typescript-eslint": "^8.71.0"
+		"typescript-eslint": "^8.72.1"
 	},
-	"packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8",
+	"packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32",
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.1139.0"
+		"@aws-sdk/client-s3": "^3.1164.0"
 	}
 }

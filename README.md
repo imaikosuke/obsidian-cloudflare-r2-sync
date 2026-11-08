@@ -260,7 +260,7 @@ Leading slashes in templates are normalized away.
 
 ### Build
 
-The repository uses [mise](https://mise.jdx.dev) to manage the Node.js version (`mise.toml` pins Node 24) and [pnpm](https://pnpm.io) as the package manager (pinned in `package.json`).
+The repository uses [mise](https://mise.jdx.dev) to manage the Node.js version (`mise.toml` pins Node 24.22.2) and [pnpm](https://pnpm.io) as the package manager (pinned in `package.json` and `mise.toml`).
 
 ```bash
 # Install mise (if not already installed), then let it set up Node:

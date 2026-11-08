@@ -260,7 +260,7 @@ cover/2026/04/20260415143022-hero.webp
 
 ### ビルド
 
-このリポジトリは [mise](https://mise.jdx.dev) で Node.js のバージョン管理を行い（`mise.toml` で Node 24 を指定）、パッケージマネージャーには [pnpm](https://pnpm.io) を使用します（`package.json` で固定）。
+このリポジトリは [mise](https://mise.jdx.dev) で Node.js のバージョン管理を行い（`mise.toml` で Node 24.22.2 を指定）、パッケージマネージャーには [pnpm](https://pnpm.io) を使用します（`package.json` と `mise.toml` で固定）。
 
 ```bash
 # mise をインストールしていない場合はインストールし、Node をセットアップ:

@@ -246,7 +246,7 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 				new SecretComponent(this.app, element)
 					.setValue(this.plugin.settings.accessKeyIdSecretName)
 					.onChange(async (value) => {
-						this.plugin.settings.accessKeyIdSecretName = value.trim();
+						this.plugin.settings.accessKeyIdSecretName = value?.trim() ?? "";
 						await this.plugin.saveSettings();
 					})
 			);
@@ -258,7 +258,7 @@ export class CloudflareR2SyncSettingTab extends PluginSettingTab {
 				new SecretComponent(this.app, element)
 					.setValue(this.plugin.settings.secretAccessKeySecretName)
 					.onChange(async (value) => {
-						this.plugin.settings.secretAccessKeySecretName = value.trim();
+						this.plugin.settings.secretAccessKeySecretName = value?.trim() ?? "";
 						await this.plugin.saveSettings();
 					})
 			);
