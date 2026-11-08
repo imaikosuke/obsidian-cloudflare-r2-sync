@@ -3,7 +3,7 @@
 Upload local note images to Cloudflare R2 and replace their links with public URLs.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/imaikosuke/obsidian-cloudflare-r2-sync/releases)
+[![Version](https://img.shields.io/badge/version-1.0.3-blue.svg)](https://github.com/imaikosuke/obsidian-cloudflare-r2-sync/releases)
 [![Obsidian Plugin](https://img.shields.io/badge/Obsidian-Plugin-7c3aed.svg)](https://obsidian.md)
 
 > [日本語ver](README.ja.md)
